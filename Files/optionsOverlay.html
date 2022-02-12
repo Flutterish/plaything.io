@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>plaything.io</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://kit.fontawesome.com/3171beee0f.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="main">
+        <div class="topbar">
+            <div class="topbar-left">
+                <b>Mae</b> @ peri-stuff
+            </div>
+            <div class="topbar-right">
+                <button onclick="window.location.href = 'login'"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</button>
+            </div>
+        </div>
+        <div class="content">
+            <p>Below are all the devices you have access to:</p>
+            <div class="listing">
+                <div class="device" onclick="window.location.href = 'control'">Toaster</div>
+                <div class="device" onclick="window.location.href = 'control'">LEDs</div>
+                <div class="device" onclick="window.location.href = 'control'">Lights</div>
+                <div class="device" onclick="window.location.href = 'control'">Speakers</div>
+                <div class="device" onclick="window.location.href = 'control'">PC</div>
+                <div class="device" onclick="window.location.href = 'control'">Laptop</div>
+                <div class="device" onclick="window.location.href = 'control'">Printer</div>
+                <div class="device" onclick="window.location.href = 'control'">Banana Peel</div>
+                <div class="device" onclick="window.location.href = 'control'">Bottle</div>
+            </div>
+            <br>
+            <p>
+                <center>
+                    <b notint>Other currenly logged in users</b>
+                    <hr>
+                    <b>Ifnis</b> @ LEDs <br>
+                    <b>Peri</b> @ peri-stuff
+                </center>
+            </p>
+        </div>
+    </div>
+
+    <div class="wrapper">
+        <div class="chat">
+            <div class="chat-header">Chat @ peri-stuff</div>
+            <div class="chat-messages">
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+                <div class="timestamp">2 minutes ago</div>
+                <div class="message"><b>Ifnis</b>: lorem ipsumn dalor</div>
+            </div>
+            <div class="chat-input">
+                <input type="text" name="chatmsg" id="chatmsg" placeholder="Type a message...">
+                <button>Send</button>
+            </div>
+        </div>
+    
+        <div id="options-button" onclick="window.location.href = 'optionsOverlay'">
+            <i class="fa-solid fa-gear"></i>
+        </div>
+    </div>
+
+    <div class="overlay" onclick="if (this == event.target) window.location.href = 'devices'">
+        <div class="overlayContent">
+            <center><b notint>Settings</b></center>
+            <hr>
+            <div class="options">
+                <div><label for="theme">Theme:</label></div>
+                <div><select name="theme" id="theme">
+                    <option value="dracula" title="The default dark theme" selected>Dracula</option>
+                    <option value="light" title="A colorful light theme">Light</option>
+                </select></div>
+                <div><label for="showOthers">Show Others' Cursors:</label></div>
+                <div><input type="checkbox" name="showOthers" id="showOthers" checked></div>
+                <div><label for="chatEnabled">Enable Chat:</label></div>
+                <div><input type="checkbox" name="chatEnabled" id="chatEnabled" checked></div>
+            </div>
+            <br>
+            <center><small>your settings are saved locally</small></center>
+        </div>
+    </div>
+</body>
+</html>

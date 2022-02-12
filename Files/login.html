@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>plaything.io</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://kit.fontawesome.com/3171beee0f.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <vcenter>
+        <i class="fa-solid fa-user fa-2x"></i>
+        <label for="nickname" title="Nickname is required">Nickname*</label>
+        <input type="text" name="nickname" id="nickname">
+        <label for="pass" title="Password is not required. You can log in anonymously with a blank password">Password</label>
+        <input type="password" name="pass" id="pass">
+        <button onclick="window.location.href = 'devices'"><i class="fa-solid fa-right-long"></i></button>
+        <noflow id="info">
+            <i class="fa-solid fa-skull"></i>
+            invalid credentials
+        </noflow>
+    </vcenter>
+
+    <div class="wrapper">
+        <div id="options-button" onclick="window.location.href = 'optionsOverlay'">
+            <i class="fa-solid fa-gear"></i>
+        </div>
+    </div>
+</body>
+</html>
