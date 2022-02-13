@@ -15,14 +15,20 @@ body:not([theme]), [theme='dracula'] {
     --background: #282a36;
     --background-transparent: #282a3693;
     --background2: #44475a;
+    --background2-fill: var(--background3);
+    --background2-fill-hover: var(--background3-hover);
+    --background2-fill-active: var(--background3-active);
     --background2-hover: #3d4052;
     --background2-active: #373a4b;
     --background3: #5e627b;
     --background3-hover: #575b74;
     --background3-active: #4f536b;
     --foreground: #f8f8f2;
+    --foreground-shadow: #232530;
     --foreground2: #6272a4;
     --foreground3: black;
+    --select: var(--foreground);
+    --select-color: var(--background);
 
     --colorCyan: #8be9fd;
     --colorGreen: #50fa7b;
@@ -34,8 +40,52 @@ body:not([theme]), [theme='dracula'] {
     --colorRed: #ff5555;
     --colorYellow: #f1fa8c;
 
-    --accent: var(--colorPink);
-    --accent-darker: #f26fb9;
+    --regular-button: var(--colorGreen);
+    --regular-button-hover: var(--colorGreen-hover);
+    --regular-button-active: var(--colorGreen-active);
+
+    --color-options-button: var(--foreground);
+    --options-button: var(--background2);
+    --options-button-hover: var(--background2-hover);
+    --options-button-active: var(--background2-active);
+
+    --accent: #ff94d2;
+}
+
+[theme='light'] {
+    --background: white;
+    --background-transparent: #43434393;
+    --background2: #e6eeff;
+    --background2-fill: #a9beed;
+    --background2-fill-hover: #9cb3e6;
+    --background2-fill-active: #8ea6dc;
+    --background3: white;
+    --background3-hover: rgb(238, 246, 248);
+    --background3-active: rgb(230, 235, 243);
+    --foreground: black;
+    --foreground-shadow: rgb(199, 199, 199);
+    --select: var(--background);
+    --select-color: var(--foreground);
+
+    --colorGreen: #25a345;
+    --colorGreen-hover: #1c8f39;
+    --colorGreen-active: #167c2f;
+
+    --colorRed: #FF5F5F;
+    --colorRed-hover: #e65353;
+    --colorRed-active: #c54444;
+    --colorPink: hotpink;
+
+    --regular-button: var(--colorRed);
+    --regular-button-hover: var(--colorRed-hover);
+    --regular-button-active: var(--colorRed-active);
+
+    --color-options-button: var(--background);
+    --options-button: var(--colorRed);
+    --options-button-hover: var(--colorRed-hover);
+    --options-button-active: var(--colorRed-active);
+
+    --accent: #f54c4c;
 }
 
 html {
@@ -65,9 +115,10 @@ vcenter > button, vcenter > input {
     align-self: stretch;
 }
 
-input[type='text'] {
+input[type='text'], input[type='password'] {
     margin-bottom: 2px;
     color: var(--foreground3);
+    box-shadow: var(--foreground-shadow) 0 0 10px;
 }
 
 .button {
@@ -86,10 +137,10 @@ input[type='text'] {
 }
 
 button {
-    padding: 2px 8px;
+    padding: 4px 8px;
     border: none;
     border-radius: 3px;
-    background-color: var(--colorGreen);
+    background-color: var(--regular-button);
     color: var(--background);
     transition: var(--buttonTransitionOut);
     font-size: 0.9em;
@@ -97,11 +148,11 @@ button {
 }
 
 button:hover {
-    background-color: var(--colorGreen-hover);
+    background-color: var(--regular-button-hover);
 }
 
 button:active {
-    background-color: var(--colorGreen-active);
+    background-color: var(--regular-button-active);
     transition: var(--buttonTransitionIn);
     transform: scale(0.9);
 }
@@ -138,6 +189,10 @@ vcenter > noflow {
     display: flex;
     flex-flow: row nowrap;
     justify-content: space-between;
+}
+
+.topbar {
+    box-shadow: 0 1px 14px var(--foreground-shadow);
 }
 
 .topbar-left, .topbar-right {
@@ -186,6 +241,10 @@ b:hover {
     cursor: pointer;
 }
 
+/* [theme='light'] .device {
+    border: 2px solid var(--foreground-shadow);
+} */
+
 .device:hover {
     background-color: var(--background3-hover);
 }
@@ -203,18 +262,19 @@ b:hover {
     left: 8px;
     display: inline-block;
     padding: 4px 8px;
-    background-color: var(--background2);
+    color: var(--color-options-button);
+    background-color: var(--options-button);
     border-radius: 4px;
     transition: var(--buttonTransitionOut);
     cursor: pointer;
 }
 
 #options-button:hover {
-    background-color: var(--background2-hover);
+    background-color: var(--options-button-hover);
 }
 
 #options-button:active {
-    background-color: var(--background2-active);
+    background-color: var(--options-button-active);
     transition: var(--buttonTransitionIn);
     transform: scale(0.9);
 }
@@ -283,8 +343,8 @@ hr:active {
 select {
     border: none;
     border-radius: 3px;
-    background-color: var(--foreground);
-    color: var(--background);
+    background-color: var(--select);
+    color: var(--select-color);
 }
 
 .chat {
@@ -370,11 +430,11 @@ select {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background-color: var(--background3);
+    background-color: var(--background2-fill);
     box-sizing: border-box;
     padding: 8%;
-    --button-hover: var(--background3-hover);
-    --button-active: var(--background3-active);
+    --button-hover: var(--background2-fill-hover);
+    --button-active: var(--background2-fill-active);
 }
 
 .control-label {
@@ -412,7 +472,7 @@ select {
     height: calc( (100% - 16% * 2 / 5) * 0.3 + 8% * 2 / 5 );
     width: 3%;
     border-radius: 999999px;
-    background-color: var(--background3);
+    background-color: var(--background2-fill);
 }
 
 .notches {
@@ -454,7 +514,7 @@ select {
 .slider {
     aspect-ratio: 1 / 1;
     width: 16%;
-    background-color: var(--background3);
+    background-color: var(--background2-fill);
     border-radius: 50%;
     position: absolute;
     bottom: calc( (100% - 16% * 2 / 5) * 0.3 );
@@ -463,11 +523,11 @@ select {
 }
 
 .slider:hover {
-    background-color: var(--background3-hover);
+    background-color: var(--background2-fill-hover);
 }
 
 .slider:active {
-    background-color: var(--background3-active);
+    background-color: var(--background2-fill-active);
 }
 
 .wrapper {
