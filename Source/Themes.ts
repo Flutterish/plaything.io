@@ -13,6 +13,11 @@ const themes: Theme[] = [
     {
         name: 'Light',
         id: 'light',
+        description: 'The default light theme'
+    },
+    {
+        name: 'Cherry',
+        id: 'cherry',
         description: 'A colorful light theme'
     }
 ];

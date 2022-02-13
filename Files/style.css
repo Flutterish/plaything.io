@@ -11,24 +11,45 @@ body {
     overflow-x: hidden;
 }
 
-body:not([theme]), [theme='dracula'] {
+body, [theme='dracula'] {
     --background: #282a36;
-    --background-transparent: #282a3693;
+    
+    --foreground: #f8f8f2;
+    --foreground-shadow: #232530;
+
     --background2: #44475a;
     --background2-fill: var(--background3);
     --background2-fill-hover: var(--background3-hover);
     --background2-fill-active: var(--background3-active);
     --background2-hover: #3d4052;
     --background2-active: #373a4b;
+    
+    --control-button-background: var(--background2);
+    --control-button-inner: var(--background2-fill);
+    --control-button-inner-hover: var(--background2-fill-hover);
+    --control-button-inner-active: var(--background2-fill-active);
+    --control-button-on: var(--accent);
+    --control-button-off: var(--background2);
+
+    --control-slider-bar: var(--background2);
+    --control-slider-bar-fill: var(--background2-fill);
+    --control-slider-notch: var(--background2);
+    --control-slider-handle: var(--background2-fill);
+    --control-slider-handle-hover: var(--background2-fill-hover);
+    --control-slider-handle-active: var(--background2-fill-active);
+
     --background3: #5e627b;
     --background3-hover: #575b74;
     --background3-active: #4f536b;
-    --foreground: #f8f8f2;
-    --foreground-shadow: #232530;
     --foreground2: #6272a4;
     --foreground3: black;
+
     --select: var(--foreground);
     --select-color: var(--background);
+
+    --overlay: var(--background3);
+    --overlay-color: var(--foreground);
+    --overlay-fade: #282a3693;
 
     --colorCyan: #8be9fd;
     --colorGreen: #50fa7b;
@@ -40,9 +61,17 @@ body:not([theme]), [theme='dracula'] {
     --colorRed: #ff5555;
     --colorYellow: #f1fa8c;
 
+    --color-warning: var(--colorRed);
+
+    --color-regular-button: var(--background);
     --regular-button: var(--colorGreen);
     --regular-button-hover: var(--colorGreen-hover);
     --regular-button-active: var(--colorGreen-active);
+
+    --color-topbar-button: var(--color-regular-button);
+    --topbar-button: var(--regular-button);
+    --topbar-button-hover: var(--regular-button-hover);
+    --topbar-button-active: var(--regular-button-active);
 
     --color-options-button: var(--foreground);
     --options-button: var(--background2);
@@ -52,20 +81,76 @@ body:not([theme]), [theme='dracula'] {
     --accent: #ff94d2;
 }
 
+[theme='cherry'] {
+    --background: #F56377;
+    --background2: #84B984;
+    --background2-fill: var(--background3);
+    --background2-fill-hover: var(--background3-hover);
+    --background2-fill-active: var(--background3-active);
+    --background2-hover: #73a773;
+    --background2-active: #6c9b6c;
+    --background3: #76b176;
+    --background3-hover: #73a773;
+    --background3-active: #6c9b6c;
+    --foreground: #f8f8f2; 
+    --foreground-shadow: #bd4c5b;
+    --foreground2: #6272a4;
+    --foreground3: black;
+
+    --select: white;
+    --select-color: black;
+
+    --overlay: white;
+    --overlay-color: black;
+    --overlay-fade: #522d31a1; 
+
+    --colorCyan: #8be9fd;
+    --colorGreen: #50fa7b;
+    --colorGreen-hover: #4ad66d;
+    --colorGreen-active: #3eae5a;
+    --colorOrange: #ffb86c;
+    --colorPink: #ff79c6;
+    --colorPurple: #bd93f9;
+    --colorRed: #ff5555;
+    --colorYellow: #f1fa8c;
+    
+    --color-warning: var(--foreground);
+
+    --color-regular-button: var(--background);
+    --regular-button: var(--colorGreen);
+    --regular-button-hover: var(--colorGreen-hover);
+    --regular-button-active: var(--colorGreen-active);
+
+    --color-topbar-button: var(--foreground);
+    --topbar-button: var(--background2);
+    --topbar-button-hover: var(--background2-hover);
+    --topbar-button-active: var(--background2-hover-active);
+
+    --color-options-button: var(--foreground);
+    --options-button: var(--background2);
+    --options-button-hover: var(--background2-hover);
+    --options-button-active: var(--background2-active);
+
+    --accent: #fff580;
+}
+
 [theme='light'] {
     --background: white;
-    --background-transparent: #43434393;
     --background2: #e6eeff;
     --background2-fill: #a9beed;
     --background2-fill-hover: #9cb3e6;
     --background2-fill-active: #8ea6dc;
     --background3: white;
-    --background3-hover: rgb(238, 246, 248);
-    --background3-active: rgb(230, 235, 243);
+    --background3-hover: #d5ddf0;
+    --background3-active: #c8d3e9;
     --foreground: black;
     --foreground-shadow: rgb(199, 199, 199);
     --select: var(--background);
     --select-color: var(--foreground);
+    
+    --overlay: var(--background3);
+    --overlay-color: var(--foreground);
+    --overlay-fade: #43434393;
 
     --colorGreen: #25a345;
     --colorGreen-hover: #1c8f39;
@@ -76,9 +161,17 @@ body:not([theme]), [theme='dracula'] {
     --colorRed-active: #c54444;
     --colorPink: hotpink;
 
+    --color-warning: var(--colorRed);
+
+    --color-regular-button: var(--background);
     --regular-button: var(--colorRed);
     --regular-button-hover: var(--colorRed-hover);
     --regular-button-active: var(--colorRed-active);
+    --color-topbar-button: var(--color-regular-button);
+    
+    --topbar-button: var(--regular-button);
+    --topbar-button-hover: var(--regular-button-hover);
+    --topbar-button-active: var(--regular-button-active);
 
     --color-options-button: var(--background);
     --options-button: var(--colorRed);
@@ -117,6 +210,8 @@ vcenter > button, vcenter > input {
 
 input[type='text'], input[type='password'] {
     margin-bottom: 2px;
+    padding: 2px;
+    border: 0;
     color: var(--foreground3);
     box-shadow: var(--foreground-shadow) 0 0 10px;
 }
@@ -141,20 +236,33 @@ button {
     border: none;
     border-radius: 3px;
     background-color: var(--regular-button);
-    color: var(--background);
+    color: var(--color-regular-button);
     transition: var(--buttonTransitionOut);
     font-size: 0.9em;
     cursor: pointer;
+}
+
+.topbar button {
+    background-color: var(--topbar-button);
+    color: var(--color-topbar-button);
 }
 
 button:hover {
     background-color: var(--regular-button-hover);
 }
 
+.topbar button:hover {
+    background-color: var(--topbar-button-hover);
+}
+
 button:active {
     background-color: var(--regular-button-active);
     transition: var(--buttonTransitionIn);
     transform: scale(0.9);
+}
+
+.topbar button:active {
+    background-color: var(--topbar-button-active);
 }
 
 vcenter > noflow {
@@ -169,7 +277,7 @@ vcenter > noflow {
 }
 
 #info {
-    color: var(--colorRed);
+    color: var(--color-warning);
 }
 
 .main {
@@ -208,7 +316,7 @@ b {
 }
 
 b[notint] {
-    color: var(--foreground);
+    color: inherit;
 }
 
 b:hover {
@@ -233,17 +341,13 @@ b:hover {
 
 .device {
     border-radius: 4px;
-    background-color: var(--background3);
+    /* background-color: var(--background3); */
     padding: 8px;
     flex-grow: 1;
     text-align: center;
     transition: var(--buttonTransitionOut);
     cursor: pointer;
 }
-
-/* [theme='light'] .device {
-    border: 2px solid var(--foreground-shadow);
-} */
 
 .device:hover {
     background-color: var(--background3-hover);
@@ -299,7 +403,7 @@ hr:active {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: var(--background-transparent);
+    background-color: var(--overlay-fade);
     backdrop-filter: blur(2px);
     box-sizing: border-box;
     padding: 70px;
@@ -309,7 +413,8 @@ hr:active {
     margin: auto;
     width: 500px;
     height: fit-content;
-    background-color: var(--background3);
+    color: var(--overlay-color);
+    background-color: var(--overlay);
     border-radius: 6px;
     box-sizing: border-box;
     padding: 32px;
@@ -421,7 +526,7 @@ select {
 .control-button {
     height: 40%;
     aspect-ratio: 1;
-    background-color: var(--background2);
+    background-color: var(--control-button-background);
     border-radius: 5%;
     padding: 2%;
 }
@@ -430,11 +535,11 @@ select {
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background-color: var(--background2-fill);
+    background-color: var(--control-button-inner);
     box-sizing: border-box;
     padding: 8%;
-    --button-hover: var(--background2-fill-hover);
-    --button-active: var(--background2-fill-active);
+    --button-hover: var(--control-button-inner-hover);
+    --button-active: var(--control-button-inner-active);
 }
 
 .control-label {
@@ -462,7 +567,7 @@ select {
     height: 100%;
     width: 3%;
     border-radius: 999999px;
-    background-color: var(--background2);
+    background-color: var(--control-slider-bar);
 }
 
 .bar-fill {
@@ -472,7 +577,7 @@ select {
     height: calc( (100% - 16% * 2 / 5) * 0.3 + 8% * 2 / 5 );
     width: 3%;
     border-radius: 999999px;
-    background-color: var(--background2-fill);
+    background-color: var(--control-slider-bar-fill);
 }
 
 .notches {
@@ -503,7 +608,7 @@ select {
     margin-right: 8%;
     margin-left: 8%;
     border-radius: 9999999px;
-    background-color: var(--background2);
+    background-color: var(--control-slider-notch);
 }
 
 .notch-label {
@@ -511,10 +616,10 @@ select {
     line-height: 0;
 }
 
-.slider {
+.handle {
     aspect-ratio: 1 / 1;
     width: 16%;
-    background-color: var(--background2-fill);
+    background-color: var(--control-slider-handle);
     border-radius: 50%;
     position: absolute;
     bottom: calc( (100% - 16% * 2 / 5) * 0.3 );
@@ -522,12 +627,12 @@ select {
     cursor: grab;
 }
 
-.slider:hover {
-    background-color: var(--background2-fill-hover);
+.handle:hover {
+    background-color: var(--control-slider-handle-hover);
 }
 
-.slider:active {
-    background-color: var(--background2-fill-active);
+.handle:active {
+    background-color: var(--control-slider-handle-active);
 }
 
 .wrapper {
