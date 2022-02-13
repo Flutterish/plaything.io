@@ -70,6 +70,21 @@ input[type='text'] {
     color: var(--foreground3);
 }
 
+.button {
+    transition: var(--buttonTransitionOut);
+    cursor: pointer;
+}
+
+.button:hover {
+    background-color: var(--button-hover);
+}
+
+.button:active {
+    background-color: var(--button-active);
+    transition: var(--buttonTransitionIn);
+    transform: scale(0.9);
+}
+
 button {
     padding: 2px 8px;
     border: none;
@@ -114,6 +129,7 @@ vcenter > noflow {
 }
 
 .topbar {
+    flex-shrink: 0;
     box-sizing: border-box;
     background-color: var(--background2);
     width: 100%;
@@ -146,6 +162,8 @@ b:hover {
 
 .content {
     padding: 16px;
+    flex-grow: 1;
+    position: relative;
 }
 
 .listing {
@@ -253,6 +271,9 @@ hr:active {
 
 .options > *:nth-child(2n + 1) {
     text-align: left;
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: center;
 }
 
 .options > *:nth-child(2n) {
@@ -324,88 +345,129 @@ select {
 .control-list {
     display: flex;
     flex-flow: row wrap;
-    gap: 50px;
-    flex-grow: 1;
+    gap: 3%;
     align-items: center;
     justify-content: center;
     width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.control-list > * {
+    position: relative;
+    box-sizing: border-box;
 }
 
 .control-button {
     height: 40%;
     aspect-ratio: 1;
+    background-color: var(--background2);
+    border-radius: 5%;
+    padding: 2%;
 }
 
-.control-button > i {
+.button-inner {
     width: 100%;
     height: 100%;
-    font-size: 35vh;
+    border-radius: 50%;
+    background-color: var(--background3);
+    box-sizing: border-box;
+    padding: 8%;
+    --button-hover: var(--background3-hover);
+    --button-active: var(--background3-active);
+}
+
+.control-label {
+    width: 100%;
+    font-weight: bold;
+    text-align: center;
+    position: absolute;
+    left: 0;
+    font-size: 4vh;
+    top: -1.5em;
+}
+
+.control-button > div > i {
     color: var(--accent);
+    vertical-align: top;
 }
 
 .control-slider {
     height: 90%;
     aspect-ratio: 2 / 5;
-    display: flex;
-    flex-flow: row nowrap;
 }
 
-.control-slider .handle {
-    flex-grow: 1;
+.bar {
+    margin: auto;
+    height: 100%;
+    width: 3%;
+    border-radius: 999999px;
+    background-color: var(--background2);
 }
 
-.control-slider .handle > * {
-    height: 1px;
-    color: var(--accent);
-    position: relative;
-    top: 63%;
-    font-size: 10vh;
+.bar-fill {
+    position: absolute;
+    bottom: 0;
+    left: calc( 50% - 1.5% );
+    height: calc( (100% - 16% * 2 / 5) * 0.3 + 8% * 2 / 5 );
+    width: 3%;
+    border-radius: 999999px;
+    background-color: var(--background3);
 }
 
-.control-slider .handle > * > * {
-    position: relative;
-    bottom: 6.5vh;
-}
-
-.control-slider .notches {
-    flex-grow: 1;
+.notches {
+    height: 100%;
+    position: absolute;
+    bottom: 0;
+    width: 50%;
+    right: 50%;
     display: flex;
     flex-flow: column nowrap;
-    justify-content: space-evenly;
-}
-
-.control-slider .notches > * {
-    height: 2vh;
-    width: 80%;
-    align-self: flex-end;
-    background-color: var(--accent);
-    border-radius: 1vh;
-}
-
-.control-slider .bar {
-    flex-grow: 2.5;
-    padding-left: 1vh;
+    justify-content: space-between;
     box-sizing: border-box;
+    padding-bottom: calc( 16% * 2 / 5 );
+    padding-top: calc( 16% * 2 / 5 );
 }
 
-.control-slider .bar > div {
-    width: 100%;
-    height: 100%;
-    background-color: var(--accent);
-    padding: 2vh 2vh 2vh 4vh;
-    box-sizing: border-box;
+.notches > div {
+    text-align: right;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: flex-end;
+    align-items: center;
 }
 
-.control-slider .bar > div > div {
-    width: 100%;
-    height: 100%;
-    background-color: var(--accent-darker);
+.notch {
+    width: 20%;
+    aspect-ratio: 3 / 1;
+    margin-right: 8%;
+    margin-left: 8%;
+    border-radius: 9999999px;
+    background-color: var(--background2);
 }
 
-.control-slider .bar > div > div > div {
-    width: 100%;
-    height: 63%;
-    background-color: var(--background);
+.notch-label {
+    height: 0;
+    line-height: 0;
+}
+
+.slider {
+    aspect-ratio: 1 / 1;
+    width: 16%;
+    background-color: var(--background3);
+    border-radius: 50%;
+    position: absolute;
+    bottom: calc( (100% - 16% * 2 / 5) * 0.3 );
+    right: calc( 50% - 16% / 2 );
+    cursor: grab;
+}
+
+.slider:hover {
+    background-color: var(--background3-hover);
+}
+
+.slider:active {
+    background-color: var(--background3-active);
 }
 
 .wrapper {
@@ -421,4 +483,41 @@ select {
 
 .wrapper > * {
     pointer-events: auto;
+}
+
+.cursor {
+    position: absolute;
+    bottom: 30%;
+    left: 24%;
+
+    font-size: 140%;
+    /* --user-color: var(--colorRed); */
+    color: var(--user-color);
+    text-shadow:
+        -1px -1px 0 var(--foreground),
+        0   -1px 0 var(--foreground),
+        1px -1px 0 var(--foreground),
+        1px  0   0 var(--foreground),
+        1px  1px 0 var(--foreground),
+        0    1px 0 var(--foreground),
+        -1px  1px 0 var(--foreground),
+        -1px  0   0 var(--foreground);
+}
+
+.cursor-name {
+    font-size: 70%;
+    top: 1em;
+    text-shadow: none;
+    padding: 0 5px;
+    color: var(--background);
+    font-weight: bold;
+    background-color: var(--user-color);
+    position: relative;
+    display: inline-block;
+}
+
+.share {
+    width: 100%;
+    height: 100%;
+    /* background-color: red; */
 }
