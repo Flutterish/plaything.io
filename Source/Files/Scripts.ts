@@ -1,4 +1,4 @@
-import type { API, RequestResponseMap } from '@Server/Api'
+import type { API, DistributiveOmit, RequestResponseMap } from '@Server/Api'
 import type { SocketHeartbeat } from './WebWorkers/Socket';
 
 export const Workers = {
@@ -34,7 +34,7 @@ export const Workers = {
 
             mapRequests: <Tprop extends string, Treqq extends { [Key in Tprop]: string } & Treq, Tmap extends { [Key in Treqq[Tprop]]: Tres }>() => {
                 return {
-                    request: <Trequest extends Treqq>( data: Omit<Trequest, 'id'> ): Promise<Omit<Tmap[Trequest[Tprop]], 'id'>> => {
+                    request: <Trequest extends Treqq>( data: Omit<Trequest, 'id'> ): Promise<DistributiveOmit<Tmap[Trequest[Tprop]], 'id'>> => {
                         return new Promise( (res, rej) => {
                             (data as Trequest).id = id;
                             callbacks[id++] = [res, rej];
@@ -95,10 +95,12 @@ function loadPage ( state: PageState ) {
 async function loadLoginPage ( state: PageState ) {
     document.body.innerHTML = state.html;
 
-    var passLabel = document.getElementById( 'pass-label' )!;
-    var nickLabel = document.getElementById( 'nickname-label' )!;
-    var pass = document.getElementById( 'pass' )!;
-    var nick = document.getElementById( 'nickname' )!;
+    var passLabel = document.getElementById( 'pass-label' ) as HTMLLabelElement;
+    var nickLabel = document.getElementById( 'nickname-label' ) as HTMLLabelElement;
+    var pass = document.getElementById( 'pass' ) as HTMLInputElement;
+    var nick = document.getElementById( 'nickname' ) as HTMLInputElement;
+    var submit = document.getElementById( 'login' ) as HTMLButtonElement;
+    var messages = document.getElementById( 'info' )!;
 
     var info = await sockets.request<API.RequestLoginInfo>( { type: 'loginInformation' } );
     if ( info.anonymousAllowed ) {
@@ -111,4 +113,51 @@ async function loadLoginPage ( state: PageState ) {
 
     nickLabel.innerText += '*';
     nickLabel.setAttribute( 'title', 'Nickname is required' );
+
+    submit.onclick = async () => {
+        var nickname = nick.value;
+        var password = pass.value;
+
+        var res = await sockets.request<API.RequestLogin>( {
+            type: 'login',
+            nickname: nickname,
+            password: password
+        } );
+
+        if ( res.result == 'ok' ) {
+            messages.innerHTML = `
+                <i class="fa-solid fa-skull"></i>
+                Poggers
+            `;
+
+            localStorage.setItem( 'session_key', res.sessionKey );
+        }
+        else {
+            messages.innerHTML = `
+                <i class="fa-solid fa-skull"></i>
+                <div>Could not log in</div>
+            `;
+
+            if ( res.reason == 'nickname and password required' ) {
+                messages.innerHTML += '<label for="nickname">The <abbr>nickname</abbr> field is required</label>';
+                messages.innerHTML += '<label for="pass">The <abbr>password</abbr> field is required</label>';
+            }
+            else if ( res.reason == 'nickname required' ) {
+                messages.innerHTML += '<label for="nickname">The <abbr>nickname</abbr> field is required</label>';
+            }
+            else if ( res.reason == 'password required' ) {
+                messages.innerHTML += '<label for="pass">The <abbr>password</abbr> field is required</label>';
+            }
+            else if ( res.reason == 'invalid credentials' ) {
+                messages.innerHTML += '<div>Invalid credentials</div>';
+            }
+        }
+    };
+
+    nick.onkeydown = pass.onkeydown = e => {
+        if ( e.key.toLowerCase() == 'enter' ) {
+            e.preventDefault();
+            submit.click();
+        }
+    }
 }

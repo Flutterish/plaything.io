@@ -1,9 +1,10 @@
 import express from 'express';
-import { AllowAnonymousAccess, WhitelistedUsers } from './Whitelist.js';
+import { AllowAnonymousAccess, getUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
 import { UserSession } from './Users';
-import WebSocket, { WebSocketServer } from 'ws';
-import { API, RequestResponseMap } from './Api';
+import { WebSocketServer } from 'ws';
+import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
+import { LogConnecction } from './Logger.js';
 
 const app = express();
 const port = 8080;
@@ -21,27 +22,44 @@ app.get( '/*', (req, res) => {
 
 const wss = new WebSocketServer({ noServer: true });
 wss.addListener( 'connection', (ws, req) => {
-    var address = req.socket.remoteAddress;
-    console.log( `Client established a websocket: '${address}'` );
+    var address = req.socket.remoteAddress ?? '???';
+    LogConnecction( address, 'in', `Client established a websocket` );
 
     ws.addEventListener( 'close', e => {
-        console.log( `Closed a websocket connection with: '${address}' because '${e.reason || '<no reason provided>'}'` );
+        LogConnecction( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
     } );
     ws.addEventListener( 'error', err => {
-        console.log( `Error on connection with '${address}': ${err.message}` );
+        LogConnecction( address, 'in', `Error on connection:`, err.message );
     } );
     ws.addEventListener( 'message', msg => {
-        var data = JSON.parse( msg.data.toString() );
-        if ( typeof data !== 'object' || typeof data.id !== 'number' || typeof data.type !== 'string' ) {
-            ws.send( JSON.stringify( {
+        var str = msg.data.toString();
+        try {
+            var data = JSON.parse( str );
+            LogConnecction( address, 'in', data );
+
+            if ( typeof data !== 'object' || typeof data.id !== 'number' || typeof data.type !== 'string' ) {
+                var r = {
+                    error: 'Invalid request',
+                    id: data?.id
+                };
+                ws.send( JSON.stringify( r ) );
+                LogConnecction( address, 'out', r );
+            }
+            else {
+                ApiHandlers.processRequest( data ).then( res => {
+                    ws.send( JSON.stringify( res ) );
+                    LogConnecction( address, 'out', res );
+                } );
+            }
+        }
+        catch {
+            LogConnecction( address, 'in', str );
+            var r = {
                 error: 'Invalid request',
                 id: data?.id
-            } ) );
-        }
-        else {
-            ApiHandlers.processRequest( data ).then( res => {
-                ws.send( JSON.stringify( res ) );
-            } );
+            };
+            ws.send( JSON.stringify( r ) );
+            LogConnecction( address, 'out', r );
         }
     } );
 } );
@@ -56,13 +74,20 @@ server.on( 'upgrade', (req, ws, head) => {
     } );
 } );
 
+function isNullOrEmpty ( str?: string ): str is '' | undefined {
+    return str == undefined || str.length == 0;
+}
+
 const ApiHandlers: {
-    [Key in API.Request['type']]: (req: Extract<API.Request, { type: Key }>) => Promise<RequestResponseMap[Key]>
+    [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>) => Promise<DistributiveOmit<RequestResponseMap[Key], 'id'>>
 } & { processRequest: (req: API.Request) => Promise<API.Response> } = {
     processRequest: async (req: API.Request): Promise<API.Response> => {
         if ( req.type in ApiHandlers ) {
-            var handler = ApiHandlers[req.type] as (req: API.Request) => Promise<API.Response>;
-            return await handler( req );
+            var handler = ApiHandlers[req.type] as (req: API.Request) => Promise<DistributiveOmit<API.Response, 'id'>>;
+            var val = await handler( req ) as API.Response;
+            val.id = req.id;
+
+            return val;
         }
         else {
             return {
@@ -73,16 +98,61 @@ const ApiHandlers: {
     },
 
     'loginInformation': async req => {
-        return {
-            anonymousAllowed: AllowAnonymousAccess,
-            id: req.id
-        };
+        return { anonymousAllowed: AllowAnonymousAccess };
     },
 
     'login': async req => {
-        return {
-            result: 'invalid',
-            id: req.id
+        if ( isNullOrEmpty( req.nickname ) ) {
+            return { 
+                result: 'invalid',
+                reason: (isNullOrEmpty( req.password ) && !AllowAnonymousAccess) ? 'nickname and password required' : 'nickname required'
+            };
+        }
+
+        if ( isNullOrEmpty( req.password ) ) {
+            if ( !AllowAnonymousAccess ) {
+                return { 
+                    result: 'invalid',
+                    reason: 'password required'
+                };
+            }
+            else {
+                var [key, session] = loginSessions.createSession( {
+                    nickname: req.nickname
+                } );
+
+                return {
+                    result: 'ok',
+                    sessionKey: key,
+                    session: session
+                };
+            }
+        }
+
+        var user = await getUser( req.nickname );
+        if ( user == undefined ) {
+            return { 
+                result: 'invalid',
+                reason: 'invalid credentials'
+            };
+        }
+        else {
+            if ( await verifyUser( user, req.password ) ) {
+                var [key, session] = loginSessions.createSession( {
+                    nickname: req.nickname
+                } );
+                return {
+                    result: 'ok',
+                    sessionKey: key,
+                    session: session
+                };
+            }
+            else {
+                return { 
+                    result: 'invalid',
+                    reason: 'invalid credentials'
+                };
+            }
         }
     }
 };

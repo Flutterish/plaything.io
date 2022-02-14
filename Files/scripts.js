@@ -79,6 +79,8 @@ async function loadLoginPage(state) {
     var nickLabel = document.getElementById('nickname-label');
     var pass = document.getElementById('pass');
     var nick = document.getElementById('nickname');
+    var submit = document.getElementById('login');
+    var messages = document.getElementById('info');
     var info = await sockets.request({ type: 'loginInformation' });
     if (info.anonymousAllowed) {
         passLabel.setAttribute('title', 'Password is not required. You can log in anonymously with a blank password');
@@ -89,4 +91,45 @@ async function loadLoginPage(state) {
     }
     nickLabel.innerText += '*';
     nickLabel.setAttribute('title', 'Nickname is required');
+    submit.onclick = async () => {
+        var nickname = nick.value;
+        var password = pass.value;
+        var res = await sockets.request({
+            type: 'login',
+            nickname: nickname,
+            password: password
+        });
+        if (res.result == 'ok') {
+            messages.innerHTML = `
+                <i class="fa-solid fa-skull"></i>
+                Poggers
+            `;
+            localStorage.setItem('session_key', res.sessionKey);
+        }
+        else {
+            messages.innerHTML = `
+                <i class="fa-solid fa-skull"></i>
+                <div>Could not log in</div>
+            `;
+            if (res.reason == 'nickname and password required') {
+                messages.innerHTML += '<label for="nickname">The <abbr>nickname</abbr> field is required</label>';
+                messages.innerHTML += '<label for="pass">The <abbr>password</abbr> field is required</label>';
+            }
+            else if (res.reason == 'nickname required') {
+                messages.innerHTML += '<label for="nickname">The <abbr>nickname</abbr> field is required</label>';
+            }
+            else if (res.reason == 'password required') {
+                messages.innerHTML += '<label for="pass">The <abbr>password</abbr> field is required</label>';
+            }
+            else if (res.reason == 'invalid credentials') {
+                messages.innerHTML += '<div>Invalid credentials</div>';
+            }
+        }
+    };
+    nick.onkeydown = pass.onkeydown = e => {
+        if (e.key.toLowerCase() == 'enter') {
+            e.preventDefault();
+            submit.click();
+        }
+    };
 }

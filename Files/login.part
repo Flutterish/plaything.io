@@ -4,11 +4,8 @@
     <input type="text" name="nickname" id="nickname">
     <label for="pass" id="pass-label">Password</label>
     <input type="password" name="pass" id="pass">
-    <button aria-label="login"><i class="fa-solid fa-right-long"></i></button>
-    <noflow id="info">
-        <i class="fa-solid fa-skull"></i>
-        invalid credentials
-    </noflow>
+    <button aria-label="login" id="login"><i class="fa-solid fa-right-long"></i></button>
+    <noflow><div id="info"></div></noflow>
 </vcenter>
 
 <div class="wrapper">
