@@ -25,6 +25,17 @@ export const Workers = {
                     callbacks[id++] = [res, rej];
                     worker.postMessage(data);
                 });
+            },
+            mapRequests: () => {
+                return {
+                    request: (data) => {
+                        return new Promise((res, rej) => {
+                            data.id = id;
+                            callbacks[id++] = [res, rej];
+                            worker.postMessage(data);
+                        });
+                    },
+                };
             }
         };
     }
@@ -49,7 +60,7 @@ var flexFont = function () {
 window.addEventListener('load', flexFont);
 window.addEventListener('resize', flexFont);
 const sockets = Workers.get('WebWorkers/Socket.js', heartbeat => {
-});
+}).mapRequests();
 window.addEventListener('load', () => {
     request('login.part', res => {
         var state = { type: 'login', html: res };

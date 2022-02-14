@@ -1,8 +1,8 @@
-import type { API } from '@Server/Api'
+import type { API, RequestResponseMap } from '@Server/Api'
 import type { SocketHeartbeat } from './WebWorkers/Socket';
 
 export const Workers = {
-    get: <Treq extends { id: number } = { id: number }, Tres extends { id: number } = { id: number }, Theartbeat = undefined>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
+    get: <Treq extends { id: number } = { id: number }, Tres extends { id: number } = { id: number }, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
         var worker = new Worker( name );
         var callbacks: { [id: number]: [(data: any) => any, (err: any) => any] } = {};
         var id = 0;
@@ -30,6 +30,18 @@ export const Workers = {
                     callbacks[id++] = [res, rej];
                     worker.postMessage( data );
                 } );
+            },
+
+            mapRequests: <Tprop extends string, Treqq extends { [Key in Tprop]: string } & Treq, Tmap extends { [Key in Treqq[Tprop]]: Tres }>() => {
+                return {
+                    request: <Trequest extends Treqq>( data: Omit<Trequest, 'id'> ): Promise<Omit<Tmap[Trequest[Tprop]], 'id'>> => {
+                        return new Promise( (res, rej) => {
+                            (data as Trequest).id = id;
+                            callbacks[id++] = [res, rej];
+                            worker.postMessage( data );
+                        } );
+                    },
+                };
             }
         };
     }
@@ -64,7 +76,7 @@ type PageState = {
 
 const sockets = Workers.get<API.Request, API.Response, SocketHeartbeat>( 'WebWorkers/Socket.js', heartbeat => {
 
-} );
+} ).mapRequests<'type', API.Request, RequestResponseMap>();
 
 window.addEventListener( 'load', () => {
     request( 'login.part', res => {
@@ -88,7 +100,7 @@ async function loadLoginPage ( state: PageState ) {
     var pass = document.getElementById( 'pass' )!;
     var nick = document.getElementById( 'nickname' )!;
 
-    var info = await sockets.request<API.RequestLoginInfo, API.ResponseLoginInfo>( { type: 'loginInformation' } );
+    var info = await sockets.request<API.RequestLoginInfo>( { type: 'loginInformation' } );
     if ( info.anonymousAllowed ) {
         passLabel.setAttribute( 'title', 'Password is not required. You can log in anonymously with a blank password' );
     }

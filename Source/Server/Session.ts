@@ -1,4 +1,4 @@
-type SessionKey = string;
+export type SessionKey = string;
 
 function nextKey () {
     var charset = 'qwertyuiopasdfghjklzxcvbnm1234567890-=+_[{]}';

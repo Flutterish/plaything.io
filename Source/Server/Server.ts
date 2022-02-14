@@ -3,7 +3,7 @@ import { AllowAnonymousAccess, WhitelistedUsers } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
 import { UserSession } from './Users';
 import WebSocket, { WebSocketServer } from 'ws';
-import { API } from './Api';
+import { API, RequestResponseMap } from './Api';
 
 const app = express();
 const port = 8080;
@@ -39,7 +39,7 @@ wss.addListener( 'connection', (ws, req) => {
             } ) );
         }
         else {
-            processAPIRequest( data as API.Request ).then( res => {
+            ApiHandlers.processRequest( data ).then( res => {
                 ws.send( JSON.stringify( res ) );
             } );
         }
@@ -56,21 +56,33 @@ server.on( 'upgrade', (req, ws, head) => {
     } );
 } );
 
-async function processAPIRequest ( req: API.Request ): Promise<API.Response> {
-    if ( req.type == 'loginInformation' ) {
-        return processAPIRequestLoginInformation( req );
-    }
-    else {
+const ApiHandlers: {
+    [Key in API.Request['type']]: (req: Extract<API.Request, { type: Key }>) => Promise<RequestResponseMap[Key]>
+} & { processRequest: (req: API.Request) => Promise<API.Response> } = {
+    processRequest: async (req: API.Request): Promise<API.Response> => {
+        if ( req.type in ApiHandlers ) {
+            var handler = ApiHandlers[req.type] as (req: API.Request) => Promise<API.Response>;
+            return await handler( req );
+        }
+        else {
+            return {
+                error: 'Invalid request type',
+                id: req.id
+            };
+        }
+    },
+
+    'loginInformation': async req => {
         return {
-            error: 'Invalid request type',
+            anonymousAllowed: AllowAnonymousAccess,
             id: req.id
         };
-    }
-}
+    },
 
-function processAPIRequestLoginInformation ( req: API.RequestLoginInfo ): API.ResponseLoginInfo {
-    return {
-        anonymousAllowed: AllowAnonymousAccess,
-        id: req.id
-    };
-}
+    'login': async req => {
+        return {
+            result: 'invalid',
+            id: req.id
+        }
+    }
+};
