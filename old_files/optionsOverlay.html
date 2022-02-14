@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Remote control device selection">
+    <meta name="description" content="Mockup page for user settings">
     <title>plaything.io</title>
     <link rel="stylesheet" href="style.css">
-    <script src="scripts.js"></script>
+    <script src="Scripts.js"></script>
     <script src="https://kit.fontawesome.com/3171beee0f.js" crossorigin="anonymous"></script>
 </head>
 <body theme="dracula">
@@ -84,6 +84,31 @@
     
         <div id="options-button" onclick="window.location.href = 'optionsOverlay'">
             <i class="fa-solid fa-gear"></i>
+        </div>
+    </div>
+
+    <div class="overlay" onclick="if (this == event.target) window.location.href = 'devices'">
+        <div class="overlayContent">
+            <center><b notint>Settings</b></center>
+            <hr>
+            <div class="options">
+                <div><label for="theme">Theme:</label></div>
+                <div><select name="theme" id="theme">
+                    <option value="dracula" title="The default dark theme" selected>Dracula</option>
+                    <option value="cherry" title="A colorful light theme">Cherry</option>
+                    <option value="light" title="The default light theme">Light</option>
+                </select></div>
+                <div><label for="showOthers" title="show others' cursors on the control pages">Show Others' Cursors:</label></div>
+                <div><input type="checkbox" name="showOthers" id="showOthers" checked></div>
+
+                <div><label for="chatEnabled" title="show messages created with right click > comment">Show Messages:</label></div>
+                <div><input type="checkbox" name="chatEnabled" id="chatEnabled" checked></div>
+ 
+                <div><label for="owncolour" title="the colour of your cursor and the accent colour of the website">Accent Colour:</label></div>
+                <div><input type="color" name="owncolour" id="owncolour" value="#ff79c6"></div>
+            </div>
+            <br>
+            <center><small>your settings are saved on the cloud</small></center>
         </div>
     </div>
 </body>

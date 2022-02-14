@@ -1,0 +1,18 @@
+<vcenter>
+    <i class="fa-solid fa-user fa-2x"></i>
+    <label for="nickname" id="nickname-label">Nickname</label>
+    <input type="text" name="nickname" id="nickname">
+    <label for="pass" id="pass-label">Password</label>
+    <input type="password" name="pass" id="pass">
+    <button aria-label="login"><i class="fa-solid fa-right-long"></i></button>
+    <noflow id="info">
+        <i class="fa-solid fa-skull"></i>
+        invalid credentials
+    </noflow>
+</vcenter>
+
+<div class="wrapper">
+    <div id="options-button">
+        <i class="fa-solid fa-gear"></i>
+    </div>
+</div>
