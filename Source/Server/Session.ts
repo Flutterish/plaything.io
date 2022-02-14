@@ -10,25 +10,61 @@ function nextKey () {
     return key;
 }
 
-export default function CreateSessionPool<T> ( name: string ) {
-    var sessions: { [key: SessionKey]: T } = {};
+export default function CreateSessionPool<Tdata> ( name?: string ) {
+    var sessions: { [key: SessionKey]: Tdata } = {};
 
-    function generateSession ( data: T ): [ key: SessionKey, session: T ] {
+    function generateSession ( data: Tdata ) {
         do {
             var key = nextKey();
         }
         while ( sessions[key] != undefined );
         sessions[key] = data;
 
-        return [key, data];
+        return key;
     }
 
     // TODO expire sessions
-    return {
+    var pool = {
         name: name,
         createSession: generateSession,
         sessionExists: ( key: SessionKey ) => sessions[key] != undefined,
-        getSession: (( key: SessionKey ) => sessions[key]) as (key: SessionKey) => T | undefined,
-        destroySession: ( key: SessionKey ) => delete sessions[key]
+        getSession: ( key: SessionKey ): Tdata | undefined => sessions[key],
+        destroySession: ( key: SessionKey ) => delete sessions[key],
+
+        WithIndex: <Tindex>( fn: (data: Tdata) => Tindex ) => {
+            var index = new Map<Tindex, SessionKey>();
+
+            return {
+                name: name,
+                createSession: ( data: Tdata ) => {
+                    var key = pool.createSession( data );
+                    index.set( fn( data ), key );
+                    return key;
+                },
+                sessionExists: pool.sessionExists,
+                indexExists: ( key: Tindex ) => index.has( key ),
+                getSession: pool.getSession,
+                getIndexed: ( key: Tindex ): Tdata | undefined => {
+                    var k = index.get( key );
+                    if ( k == undefined ) return undefined;
+                    return pool.getSession( k );
+                },
+                getIndex: ( key: Tindex ): SessionKey | undefined => index.get( key ),
+                destroySession: ( key: SessionKey ) => {
+                    var session = pool.getSession( key );
+                    if ( session == undefined ) return;
+                    index.delete( fn( session ) );
+                    pool.destroySession( key );
+                },
+                destroyIndex: ( key: Tindex ) => {
+                    var session = index.get( key );
+                    if ( session == undefined ) return;
+                    index.delete( key );
+                    pool.destroySession( session );
+                }
+            };
+        }
     };
+
+    return pool;
 };

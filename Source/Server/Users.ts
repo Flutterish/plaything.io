@@ -1,3 +1,3 @@
 export type UserSession = {
-    nickname: string
+    readonly nickname: string
 };

@@ -32,8 +32,7 @@ export namespace API {
     }>
     export type ResponseLogin = ID<{
         result: 'ok',
-        sessionKey: SessionKey,
-        session: UserSession
+        sessionKey: SessionKey
     } | {
         result: 'invalid',
         reason: 'nickname and password required' | 'nickname required' | 'password required' | 'invalid credentials'

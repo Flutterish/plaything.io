@@ -117,14 +117,13 @@ const ApiHandlers: {
                 };
             }
             else {
-                var [key, session] = loginSessions.createSession( {
+                var key = loginSessions.createSession( {
                     nickname: req.nickname
                 } );
 
                 return {
                     result: 'ok',
-                    sessionKey: key,
-                    session: session
+                    sessionKey: key
                 };
             }
         }
@@ -138,13 +137,12 @@ const ApiHandlers: {
         }
         else {
             if ( await verifyUser( user, req.password ) ) {
-                var [key, session] = loginSessions.createSession( {
+                var key = loginSessions.createSession( {
                     nickname: req.nickname
                 } );
                 return {
                     result: 'ok',
-                    sessionKey: key,
-                    session: session
+                    sessionKey: key
                 };
             }
             else {
