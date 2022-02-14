@@ -1,10 +1,10 @@
 import express from 'express';
 import { AllowAnonymousAccess, getUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
-import { UserSession } from './Users';
 import { WebSocketServer } from 'ws';
 import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
 import { LogConnecction } from './Logger.js';
+import { UserSession } from './User.js';
 
 const app = express();
 const port = 8080;
