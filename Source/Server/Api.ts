@@ -4,7 +4,8 @@ export namespace API {
     export type RequestLoginInfo = ID<{
         type: 'loginInformation'
     }>
-    export type Request = RequestLoginInfo
+    type RequestTypes = RequestLoginInfo;
+    export type Request = Extract<RequestTypes, ID<{type: string }>>
 
     export type ResponseLoginInfo = ID<{
         anonymousAllowed: boolean
@@ -12,5 +13,6 @@ export namespace API {
     export type Error = ID<{
         error: string
     }>
-    export type Response = ResponseLoginInfo | Error
+    type ResponseTypes = ResponseLoginInfo | Error
+    export type Response = Extract<ResponseTypes, ID<{}>>
 };
