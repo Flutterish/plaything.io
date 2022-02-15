@@ -21,7 +21,7 @@ export async function verifyUser ( user: User, pass: string ) {
         : await bcrypt.compare( pass, user.passwordHash );
 }
 
-export const AllowAnonymousAccess: boolean = false;
+export const AllowAnonymousAccess: boolean = true;
 export const AnonymousPermitedDevices: Device[] = [
     DeviceList.sample1,
     DeviceList.sample2,

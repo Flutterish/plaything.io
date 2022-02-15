@@ -1,10 +1,10 @@
 <div class="main">
     <div class="topbar">
         <div class="topbar-left">
-            <b>Mae</b> @ peri-stuff
+            <b id="nickname"></b> @ <span id="server-name"></span>
         </div>
         <div class="topbar-right">
-            <button onclick="window.location.href = 'login'"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</button>
+            <button id="logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</button>
         </div>
     </div>
     <div class="content">

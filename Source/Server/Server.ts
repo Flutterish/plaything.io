@@ -76,11 +76,11 @@ server.on( 'upgrade', (req, ws, head) => {
 } );
 
 function isNullOrEmpty ( str?: string ): str is '' | undefined {
-    return str == undefined || str.length == 0;
+    return typeof str !== 'string' || str.length == 0;
 }
 
 const ApiHandlers: {
-    [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>) => Promise<DistributiveOmit<RequestResponseMap[Key], 'id'>>
+    [Key in API.Request['type']]: (req: Uncertain<DistributiveOmit<Extract<API.Request, { type: Key }>, 'id'>>) => Promise<DistributiveOmit<RequestResponseMap[Key], 'id'>>
 } & { processRequest: (req: API.Request) => Promise<API.Response> } = {
     processRequest: async (req: API.Request): Promise<API.Response> => {
         if ( req.type in ApiHandlers ) {
@@ -159,5 +159,25 @@ const ApiHandlers: {
         return {
             name: serverName
         };
+    },
+
+    'logout': async req => {
+        if ( isNullOrEmpty( req.sessionKey ) || !loginSessions.sessionExists( req.sessionKey ) ) {
+            return {
+                result: 'session not found'
+            }
+        }
+        else {
+            loginSessions.destroySession( req.sessionKey );
+            return {
+                result: 'ok'
+            }
+        }
+    },
+
+    'sessionExists': async req => {
+        return {
+            value: !isNullOrEmpty( req.sessionKey ) && loginSessions.sessionExists( req.sessionKey )
+        }
     }
 };

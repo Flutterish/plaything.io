@@ -1,4 +1,5 @@
 import type { API, DistributiveOmit, RequestResponseMap } from '@Server/Api'
+import { SessionKey } from '@Server/Session';
 import type { Theme } from '@Server/Themes'
 import type { SocketHeartbeat } from '@WebWorkers/Socket';
 
@@ -77,7 +78,7 @@ window.addEventListener( 'load', flexFont );
 window.addEventListener( 'resize', flexFont );
 
 type PageState = {
-    type: 'login',
+    type: 'login' | 'devices',
     html: string
 };
 
@@ -85,13 +86,7 @@ const sockets = Workers.get<API.Request, API.Response, SocketHeartbeat>( 'WebWor
 
 } ).mapRequests<'type', API.Request, RequestResponseMap>();
 
-window.addEventListener( 'load', () => {
-    request( 'login.part', res => {
-        var state: PageState = { type: 'login', html: res };
-        window.history.pushState( state, '', 'login');
-        loadPage( state );
-    } );
-
+window.addEventListener( 'load', async () => {
     request( 'wrapper.part', res => {
         loadWrapper( res );
     } );
@@ -102,6 +97,16 @@ window.addEventListener( 'load', () => {
     }
 
     setAccent( localStorage.getItem( 'accent' ) ?? accent );
+
+    var key = localStorage.getItem( 'session_key' );
+    if ( key != null && (await sockets.request<API.RequestSessionExists>( { type: 'sessionExists', sessionKey: key } )).value ) {
+        userNickname = localStorage.getItem( 'nickname' );
+        sessionKey = key;
+        goToDevicesPage();
+    }
+    else {
+        goToLoginPage();
+    }
 } );
 
 function createTemplate ( data: string ): HTMLElement {
@@ -131,8 +136,9 @@ async function cachedGet<T extends keyof RequestCache> ( type: T ): Promise<Requ
     return cache[type] ??= await sockets.request( { type: type } );
 }
 
-var loginPage: ChildNode | undefined = undefined;
-var wrapper: ChildNode | undefined = undefined;
+var loginPage: HTMLElement | undefined = undefined;
+var mainBody: HTMLElement | undefined = undefined;
+var wrapper: HTMLElement | undefined = undefined;
 var optionsOverlay: HTMLElement | undefined = undefined;
 var isOverlayInDom = false;
 var isOverlayOpen = false;
@@ -143,7 +149,29 @@ function loadPage ( state: PageState ) {
     }
 }
 
+var userNickname: string | undefined | null;
+var sessionKey: SessionKey | undefined | null;
+function logOut () {
+    if ( sessionKey != undefined ) {
+        sockets.request<API.RequestLogout>( { type: 'logout', sessionKey: sessionKey } );
+        userNickname = undefined;
+        sessionKey = undefined;
+        goToLoginPage();
+    }
+}
+async function goToLoginPage () {
+    request( 'login.part', res => {
+        var state: PageState = { type: 'login', html: res };
+        window.history.pushState( state, '', 'login' );
+        loadPage( state );
+    } );
+}
 async function loadLoginPage ( state: PageState ) {
+    if ( mainBody != undefined ) {
+        mainBody.remove();
+        mainBody = undefined;
+    }
+
     var template = createTemplate( state.html );
 
     var passLabel = template.querySelector( '#pass-label' ) as HTMLLabelElement;
@@ -154,8 +182,8 @@ async function loadLoginPage ( state: PageState ) {
     var serverName = template.querySelector( '.top-label' ) as HTMLElement;
     var messages = template.querySelector( '#info' )!;
 
-    loginPage = template.childNodes[0];
-    document.body.appendChild( loginPage );
+    loginPage = template.childNodes[0] as HTMLElement;
+    document.body.prepend( loginPage );
 
     cachedGet( 'serverInformation' ).then( res => {
         serverName.innerText = res.name;
@@ -185,12 +213,11 @@ async function loadLoginPage ( state: PageState ) {
         } );
 
         if ( res.result == 'ok' ) {
-            messages.innerHTML = `
-                <i class="fa-solid fa-skull"></i>
-                Poggers
-            `;
-
             localStorage.setItem( 'session_key', res.sessionKey );
+            localStorage.setItem( 'nickname', nickname );
+            userNickname = nickname;
+            sessionKey = res.sessionKey;
+            goToDevicesPage();
         }
         else {
             messages.innerHTML = `
@@ -227,7 +254,7 @@ function loadWrapper ( html: string ) {
 
     var optionsButton = template.querySelector( '#options-button' ) as HTMLDivElement;
 
-    wrapper = template.childNodes[0];
+    wrapper = template.childNodes[0] as HTMLElement;
     document.body.appendChild( wrapper );
 
     optionsButton.addEventListener( 'click', openOptionsOverlay );
@@ -341,4 +368,43 @@ function updateOptionsOverlay () {
 
     addTheme();
     addAccent();
+}
+
+function isLoggedIn () {
+    return sessionKey != undefined;
+}
+
+async function goToDevicesPage () {
+    if ( !isLoggedIn() ) {
+        goToLoginPage();
+        return;    
+    }
+
+    request( 'main.part', res => {
+        loadMainBody( res );
+        // var state: PageState = { type: 'devices', html: res };
+        // window.history.pushState( state, '', 'devices' );
+        // loadPage( state );
+    } );
+}
+async function loadMainBody ( html: string ) {
+    if ( loginPage != undefined ) {
+        loginPage.remove();
+        loginPage = undefined;
+    }
+
+    var template = createTemplate( html );
+    mainBody = template.childNodes[0] as HTMLElement;
+
+    var nickname = mainBody.querySelector( '#nickname' ) as HTMLElement;
+    var servername = mainBody.querySelector( '#server-name' ) as HTMLElement;
+    var logout = mainBody.querySelector( '#logout' ) as HTMLButtonElement;
+
+    nickname.innerText = userNickname!;
+    cachedGet( 'serverInformation' ).then( res => {
+        servername.innerText = res.name;
+    } );
+    logout.addEventListener( 'click', () => logOut() );
+
+    document.body.prepend( mainBody );
 }

@@ -8,26 +8,38 @@ const worker = this as unknown as Omit<Worker, 'postMessage'> & {
     postMessage: ( message: API.Response | SocketHeartbeat ) => void
 };
 
-var socket = new WebSocket( 'ws://' + location.host );
 var socketQueue: string[] = [];
-socket.addEventListener( 'open', () => {
-    for ( const msg of socketQueue ) {
-        socket.send( msg );
-    }
-    socketQueue = [];
+var socket: WebSocket | undefined = undefined;
+
+function connect () {
+    socket = new WebSocket( 'ws://' + location.host );
+
+    socket.addEventListener( 'open', () => {
+        for ( const msg of socketQueue ) {
+            socket!.send( msg );
+        }
+        socketQueue = [];
+    } );
+
+    socket.addEventListener( 'close', e => {
+        socket = undefined;
+        setTimeout( connect, 5000 );
+    } );
 
     socket.addEventListener( 'message', msg => {
         var parsed = JSON.parse( msg.data ) as API.Response;
 
         worker.postMessage( parsed );
     } );
-} );
-socket.addEventListener( 'error', err => {
-    worker.postMessage( { type: 'connection-error' } );
-} );
+
+    socket.addEventListener( 'error', err => {
+        worker.postMessage( { type: 'connection-error' } );
+    } );
+}
+connect();
 
 function socketRequest ( msg: API.Request ) {
-    if ( socket.readyState == WebSocket.OPEN ) {
+    if ( socket?.readyState == WebSocket.OPEN ) {
         socket.send( JSON.stringify( msg ) );
     }
     else {
