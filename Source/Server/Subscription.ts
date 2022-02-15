@@ -47,10 +47,13 @@ export function CreateSessionSubscription<Tsession> (
             const reactives = new Map<Tsession, Reactive<Treactive>>();
 
             var chainAdded = added;
-            added = (session, scan) => {
+            var selfAdded: typeof added = (session, scan) => {
                 var reactive = new Reactive<Treactive>( get( session ) );
                 reactives.set( session, reactive );
                 reactive.AddOnValueChanged( v => react( session, v ) );
+            }
+            added = (session, scan) => {
+                selfAdded( session, scan );
                 chainAdded( session, scan );
             }
 
@@ -61,6 +64,11 @@ export function CreateSessionSubscription<Tsession> (
                 reactives.delete( session );
                 chainRemoved( session );
             };
+
+            var all = sessionPool.getAll();
+            for ( const key in all ) {
+                selfAdded( all[key], true );
+            }
 
             return {
                 unsubscribe: () => {

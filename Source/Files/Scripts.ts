@@ -555,6 +555,9 @@ async function loadDevicesPage ( state: PageState ) {
         }
     }
     function updateUser ( uid: number, location: string, accent: string ) {
+        if ( users[ uid ] == undefined )
+            return;
+
         var [b, text, br] = users[ uid ];
         text.nodeValue = ` @ ${location}`;
         b.style.setProperty( '--accent', accent );
