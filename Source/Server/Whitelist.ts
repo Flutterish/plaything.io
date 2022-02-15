@@ -3,11 +3,13 @@ import bcrypt from 'bcryptjs';
 import { Device } from "./Device";
 import { DeviceList } from "./DeviceList.js";
 
+var nextUID = 0;
 function makeUserSync ( nick: string, pass: string, devices: Device[] = [] ): User {
     return {
         nickname: nick,
         passwordHash: bcrypt.hashSync( pass ),
-        allowedDevices: devices
+        allowedDevices: devices,
+        UID: nextUID++
     };
 }
 
@@ -27,6 +29,13 @@ export const AnonymousPermitedDevices: Device[] = [
     DeviceList.sample2,
     DeviceList.sample3
 ];
+export function MakeAnonUser ( nickname: string ): User {
+    return {
+        nickname: nickname,
+        allowedDevices: AnonymousPermitedDevices,
+        UID: nextUID++
+    };
+}
 
 export const WhitelistedUsers: { [nickname: string]: User } = [
     makeUserSync( 'Peri', 'password12345', AnonymousPermitedDevices )

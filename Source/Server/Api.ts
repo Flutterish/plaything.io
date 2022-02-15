@@ -77,7 +77,7 @@ export namespace API {
     }>
     export type ResponseSubscribeUsers = ID<{
         result: 'ok',
-        users: { nickname: string, location: string }[]
+        users: { nickname: string, location: string, uid: number }[]
     } | {
         result: 'session not found'
     }>
@@ -97,10 +97,10 @@ export namespace API {
         type: 'heartbeat-users'
     } & ({
         kind: 'added' | 'updated',
-        user: { nickname: string, location: string }
+        user: { nickname: string, location: string, uid: number }
     } | {
         kind: 'removed',
-        user: string
+        uid: number
     })
     type HeartbeatTypes = HeartbeatDevices | HeartbeatUsers
     export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>

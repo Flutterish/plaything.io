@@ -478,8 +478,8 @@ async function loadDevicesPage ( state: PageState ) {
 
     var nooneText: Text | undefined;
     var usercount = 0;
-    var users: { [nick: string]: [HTMLElement, Text, HTMLElement] } = {};
-    function addUser ( nick: string, location: string ) {
+    var users: { [uid: number]: [HTMLElement, Text, HTMLElement] } = {};
+    function addUser ( nick: string, location: string, uid: number ) {
         if ( nooneText != undefined ) {
             nooneText.remove();
             nooneText = undefined;
@@ -491,42 +491,42 @@ async function loadDevicesPage ( state: PageState ) {
         var br = document.createElement( 'br' );
 
         usersList.append( b, text, br );
-        users[ nick ] = [b, text, br];
+        users[ uid ] = [b, text, br];
         usercount++;
     }
-    function removeUser ( nick: string ) {
-        var [b, text, br] = users[ nick ];
+    function removeUser ( uid: number ) {
+        var [b, text, br] = users[ uid ];
         b.remove();
         text.remove();
         br.remove();
 
-        delete users[ nick ];
+        delete users[ uid ];
         usercount--;
 
         if ( usercount == 0 ) {
             usersList.append( nooneText = document.createTextNode( 'No one!' ) );
         }
     }
-    function updateUser ( nick: string, location: string ) {
-        var [b, text, br] = users[ nick ];
+    function updateUser ( uid: number, location: string ) {
+        var [b, text, br] = users[ uid ];
         text.nodeValue = ` @ ${location}`;
     }
 
     heartbeatHandlers.userList = e => {
         if ( e.kind == 'added' ) {
-            addUser( e.user.nickname, e.user.location );
+            addUser( e.user.nickname, e.user.location, e.user.uid );
         }
         else if ( e.kind == 'updated' ) {
-            updateUser( e.user.nickname, e.user.location );
+            updateUser( e.user.uid, e.user.location );
         }
         else if ( e.kind == 'removed' ) {
-            removeUser( e.user );
+            removeUser( e.uid );
         }
     };
     sockets.request<API.SubscribeUsers>( { type: 'subscibeUsers' } ).then( res => {
         if ( res.result == 'ok' ) {
             for ( const user of res.users ) {
-                addUser( user.nickname, user.location );
+                addUser( user.nickname, user.location, user.uid );
             }
         }
 

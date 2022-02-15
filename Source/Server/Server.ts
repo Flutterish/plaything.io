@@ -1,5 +1,5 @@
 import express from 'express';
-import { AllowAnonymousAccess, AnonymousPermitedDevices, getUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
+import { AllowAnonymousAccess, AnonymousPermitedDevices, getUser, MakeAnonUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
@@ -129,7 +129,7 @@ const ApiHandlers: {
             }
             else {
                 var key = loginSessions.createSession( {
-                    user: { nickname: req.nickname, allowedDevices: AnonymousPermitedDevices }
+                    user: MakeAnonUser( req.nickname )
                 } );
 
                 if ( ws != undefined )
@@ -234,7 +234,7 @@ const ApiHandlers: {
                     var data: API.HeartbeatUsers = {
                         type: 'heartbeat-users',
                         kind: 'added',
-                        user: { nickname: s.user.nickname, location: serverName }
+                        user: { nickname: s.user.nickname, location: serverName, uid: s.user.UID }
                     };
                     ws.send( JSON.stringify( data ) );
                 }
@@ -248,7 +248,7 @@ const ApiHandlers: {
                     var data: API.HeartbeatUsers = {
                         type: 'heartbeat-users',
                         kind: 'removed',
-                        user: s.user.nickname
+                        uid: s.user.UID
                     };
                     ws.send( JSON.stringify( data ) );
                 }
@@ -259,7 +259,7 @@ const ApiHandlers: {
 
             return {
                 result: 'ok',
-                users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user ).map( x => ({ nickname: x.user.nickname, location: serverName }) )   
+                users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user ).map( x => ({ nickname: x.user.nickname, location: serverName, uid: x.user.UID }) )   
             }
             // TODO heartbeat-users when this goes reactive
         }
