@@ -9,6 +9,7 @@ body {
         background-color 200ms;
 
     overflow-x: hidden;
+    transition: background-color 200ms ease-out;
 }
 
 body, [theme='dracula'] {

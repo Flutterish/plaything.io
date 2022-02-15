@@ -1,4 +1,5 @@
 import type { API, DistributiveOmit, RequestResponseMap } from '@Server/Api'
+import type { Theme } from '@Server/Themes'
 import type { SocketHeartbeat } from './WebWorkers/Socket';
 
 export const Workers = {
@@ -94,6 +95,13 @@ window.addEventListener( 'load', () => {
     request( 'wrapper.part', res => {
         loadWrapper( res );
     } );
+
+    var theme = localStorage.getItem( 'theme' );
+    if ( theme != null ) {
+        setTheme( theme );
+    }
+
+    setAccent( localStorage.getItem( 'accent' ) ?? accent );
 } );
 
 function createTemplate ( data: string ): HTMLElement {
@@ -118,6 +126,7 @@ var wrapper: ChildNode | undefined = undefined;
 var optionsOverlay: HTMLElement | undefined = undefined;
 var isOverlayInDom = false;
 var isOverlayOpen = false;
+
 function loadPage ( state: PageState ) {
     if ( state.type == 'login' ) {
         loadLoginPage( state );
@@ -234,6 +243,7 @@ async function openOptionsOverlay () {
     if ( !isOverlayInDom ) {
         document.body.appendChild( optionsOverlay );
         isOverlayInDom = true;
+        updateOptionsOverlay();
     }
 
     if ( !isOverlayOpen ) {
@@ -247,4 +257,77 @@ function closeOptionsOverlay () {
 
     isOverlayOpen = false;
     setTimeout( () => optionsOverlay?.classList.remove( 'open' ), 10 );
+}
+
+var currentTheme = 'dracula';
+var availableThemes: Theme[] = [
+    { name: 'Dracula', id: 'dracula', description: '' },
+    { name: 'Cherry', id: 'cherry', description: '' },
+    { name: 'Light', id: 'light', description: '' },
+];
+function setTheme ( theme: string ) {
+    document.body.setAttribute( 'theme', currentTheme = theme );
+    localStorage.setItem( 'theme', currentTheme );
+}
+
+var accent = '#ff79c6';
+function setAccent ( newAccent: string ) {
+    document.body.style.setProperty( '--accent', accent = newAccent );
+    localStorage.setItem( 'accent', accent );
+}
+
+function updateOptionsOverlay () {
+    var list = optionsOverlay!.querySelector( '.options' ) as HTMLElement;
+    var saved = optionsOverlay!.querySelector( '#settings-saved' ) as HTMLElement;
+
+    saved.innerText = 'your settings are saved locally'; // your settings are saved on the cloud
+
+    list.innerHTML = '';
+    function addTheme () {
+        var divLabel = document.createElement( 'div' );
+        var divControl = document.createElement( 'div' );
+
+        divLabel.innerHTML = `<label for="theme">Theme</label>`;
+        
+        var select = document.createElement( 'select' );
+        select.name = 'theme';
+        select.id = 'theme';
+        for ( const theme of availableThemes ) {
+            var option = document.createElement( 'option' );
+            option.value = theme.id;
+            option.title = theme.description;
+            option.innerText = theme.name;
+            if ( theme.id == currentTheme ) {
+                option.selected = true;
+            }
+            select.appendChild( option );
+        }
+        divControl.appendChild( select );
+        select.addEventListener( 'change', () => setTheme( select.value ) );
+
+        list.appendChild( divLabel );
+        list.appendChild( divControl );
+    }
+
+    function addAccent () {
+        var divLabel = document.createElement( 'div' );
+        var divControl = document.createElement( 'div' );
+
+        divLabel.innerHTML = `<label for="accent">Accent Colour</label>`;
+        divLabel.title = 'the colour of your cursor and the accent colour of the website';
+
+        var colorSelect = document.createElement( 'input' );
+        colorSelect.type = 'color';
+        colorSelect.name = 'accent';
+        colorSelect.id = 'accent';
+        colorSelect.value = accent;
+        divControl.appendChild( colorSelect );
+        colorSelect.addEventListener( 'change', () => setAccent( colorSelect.value ) );
+
+        list.appendChild( divLabel );
+        list.appendChild( divControl );
+    }
+
+    addTheme();
+    addAccent();
 }
