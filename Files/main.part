@@ -7,27 +7,4 @@
             <button id="logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</button>
         </div>
     </div>
-    <div class="content">
-        <p>Below are all the devices you have access to:</p>
-        <div class="listing">
-            <div class="device" onclick="window.location.href = 'control'">Toaster</div>
-            <div class="device" onclick="window.location.href = 'control'">LEDs</div>
-            <div class="device" onclick="window.location.href = 'control'">Lights</div>
-            <div class="device" onclick="window.location.href = 'control'">Speakers</div>
-            <div class="device" onclick="window.location.href = 'control'">PC</div>
-            <div class="device" onclick="window.location.href = 'control'">Laptop</div>
-            <div class="device" onclick="window.location.href = 'control'">Printer</div>
-            <div class="device" onclick="window.location.href = 'control'">Banana Peel</div>
-            <div class="device" onclick="window.location.href = 'control'">Bottle</div>
-        </div>
-        <br>
-        <p>
-            <center>
-                <b notint>Other currenly logged in users</b>
-                <hr>
-                <b>Ifnis</b> @ LEDs <br>
-                <b>Peri</b> @ peri-stuff
-            </center>
-        </p>
-    </div>
 </div>

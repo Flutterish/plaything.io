@@ -14,6 +14,7 @@ export type RequestResponseMap = {
         : Req extends API.RequestServerInfo['type'] ? API.ResponseServerInfo
         : Req extends API.RequestLogout['type'] ? API.ResponseLogout
         : Req extends API.RequestSessionExists['type'] ? API.ResponseSesssionExists
+        : Req extends API.SubscribeDevices['type'] ? API.ResponseSubscribeDevices
         : never
 };
 
@@ -37,7 +38,11 @@ export namespace API {
         type: 'sessionExists',
         sessionKey: SessionKey
     }>
-    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionExists;
+    export type SubscribeDevices = ID<{
+        type: 'subscibeDevices',
+        sessionKey: SessionKey
+    }>
+    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionExists | SubscribeDevices;
     export type Request = Extract<RequestTypes, ID<{type: string}>>
 
     export type ResponseLoginInfo = ID<{
@@ -59,9 +64,23 @@ export namespace API {
     export type ResponseSesssionExists = ID<{
         value: boolean
     }>
+    export type ResponseSubscribeDevices = ID<{
+        result: 'ok',
+        devices: string[]
+    } | {
+        result: 'session not found'
+    }>
     export type Error = ID<{
         error: string
     }>
     type ResponseTypes = RequestResponseMap[keyof RequestResponseMap] | Error
     export type Response = Extract<ResponseTypes, ID<{}>>
+
+    export type HeartbeatDevices = {
+        type: 'heartbeat-devices',
+        kind: 'added' | 'removed',
+        value: string[]
+    }
+    type HeartbeatTypes = HeartbeatDevices
+    export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>
 };

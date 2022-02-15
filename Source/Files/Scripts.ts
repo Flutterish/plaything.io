@@ -147,6 +147,7 @@ async function cachedGet<T extends keyof RequestCache> ( type: T ): Promise<Requ
 
 var loginPage: HTMLElement | undefined = undefined;
 var mainBody: HTMLElement | undefined = undefined;
+var devicesPage: HTMLElement | undefined = undefined;
 var wrapper: HTMLElement | undefined = undefined;
 var optionsOverlay: HTMLElement | undefined = undefined;
 var isOverlayInDom = false;
@@ -155,6 +156,9 @@ var isOverlayOpen = false;
 async function loadPage ( state: PageState ) {
     if ( state.type == 'login' ) {
         await loadLoginPage( state );
+    }
+    else if ( state.type == 'devices' ) {
+        await loadDevicesPage( state );
     }
 }
 
@@ -211,7 +215,7 @@ async function loadLoginPage ( state: PageState ) {
     document.body.prepend( loginPage );
 
     cachedGet( 'serverInformation' ).then( res => {
-        serverName.innerText = res.name;
+        serverName.innerText = 'plaything.io / ' + res.name;
     } );
 
     cachedGet( 'loginInformation' ).then( info => {
@@ -405,12 +409,16 @@ async function goToDevicesPage () {
         return;    
     }
 
-    request( 'main.part', res => {
-        loadMainBody( res );
-        // var state: PageState = { type: 'devices', html: res };
-        // window.history.pushState( state, '', 'devices' );
-        // loadPage( state );
+    request( 'devices.part', res => {
+        var state: PageState = { type: 'devices', html: res };
+        window.history.pushState( state, '', 'devices' );
+        loadPage( state );
     } );
+}
+async function onMainBody () {
+    if ( mainBody == undefined ) {
+        await loadMainBody( await requestAsync( 'main.part' ) );
+    }
 }
 async function loadMainBody ( html: string ) {
     if ( loginPage != undefined ) {
@@ -432,4 +440,31 @@ async function loadMainBody ( html: string ) {
     logout.addEventListener( 'click', () => logOut() );
 
     document.body.prepend( mainBody );
+}
+
+async function loadDevicesPage ( state: PageState ) {
+    await onMainBody();
+
+    var template = createTemplate( state.html );
+    devicesPage = template.childNodes[0] as HTMLElement;
+
+    var listing = devicesPage.querySelector( '.listing' ) as HTMLElement;
+    var users = devicesPage.querySelector( '#users' ) as HTMLElement;
+
+    sockets.request<API.SubscribeDevices>( { type: 'subscibeDevices', sessionKey: sessionKey! } ).then( res => {
+        if ( res.result == 'ok' ) {
+            for ( const device of res.devices ) {
+                var div = document.createElement( 'div' );
+                div.classList.add( 'device' );
+                div.innerText = device;
+                listing.appendChild( div );
+            }
+        }
+
+        if ( res.result != 'ok' || res.devices.length == 0 ) {
+            listing.append( 'Nothing!' );
+        }
+    } );
+
+    mainBody!.appendChild( devicesPage );
 }

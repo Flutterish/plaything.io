@@ -2,7 +2,7 @@ import type { API } from '@Server/Api'
 
 export type SocketHeartbeat = {
     type: 'connection-error' | 'reconnected'
-};
+} | API.Heartbeat;
 
 const worker = this as unknown as Omit<Worker, 'postMessage'> & {
     postMessage: ( message: API.Response | SocketHeartbeat ) => void

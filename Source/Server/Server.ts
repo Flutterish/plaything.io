@@ -79,6 +79,10 @@ function isNullOrEmpty ( str?: string ): str is '' | undefined {
     return typeof str !== 'string' || str.length == 0;
 }
 
+function isSessionValid ( key?: string ): key is string {
+    return !isNullOrEmpty( key ) && loginSessions.sessionExists( key );
+}
+
 const ApiHandlers: {
     [Key in API.Request['type']]: (req: Uncertain<DistributiveOmit<Extract<API.Request, { type: Key }>, 'id'>>) => Promise<DistributiveOmit<RequestResponseMap[Key], 'id'>>
 } & { processRequest: (req: API.Request) => Promise<API.Response> } = {
@@ -162,22 +166,34 @@ const ApiHandlers: {
     },
 
     'logout': async req => {
-        if ( isNullOrEmpty( req.sessionKey ) || !loginSessions.sessionExists( req.sessionKey ) ) {
-            return {
-                result: 'session not found'
-            }
-        }
-        else {
+        if ( isSessionValid( req.sessionKey ) ) {
             loginSessions.destroySession( req.sessionKey );
             return {
                 result: 'ok'
             }
         }
+        else return {
+            result: 'session not found'
+        }
     },
 
     'sessionExists': async req => {
         return {
-            value: !isNullOrEmpty( req.sessionKey ) && loginSessions.sessionExists( req.sessionKey )
+            value: isSessionValid( req.sessionKey )
+        }
+    },
+
+    'subscibeDevices': async req => {
+        if ( isSessionValid( req.sessionKey ) ) {
+            var session = loginSessions.getSession( req.sessionKey )!;
+            return {
+                result: 'ok',
+                devices: session.user.allowedDevices.map( x => x.name )
+            }
+            // TODO heartbeat-devices when this goes reactive
+        }
+        else return {
+            result: 'session not found'
         }
     }
 };
