@@ -1,8 +1,8 @@
 import type { API, DistributiveOmit, RequestResponseMap } from '@Server/Api'
 import type { Theme } from '@Server/Themes'
-import type { SocketHeartbeat } from './WebWorkers/Socket';
+import type { SocketHeartbeat } from '@WebWorkers/Socket';
 
-export const Workers = {
+const Workers = {
     get: <Treq extends { id: number } = { id: number }, Tres extends { id: number } = { id: number }, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
         var worker = new Worker( name );
         var callbacks: { [id: number]: [(data: any) => any, (err: any) => any] } = {};
