@@ -4,7 +4,7 @@ import type { Theme } from '@Server/Themes'
 import type { SocketHeartbeat } from '@WebWorkers/Socket';
 
 const Workers = {
-    get: <Treq, Tres, Tmessage, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
+    get: <Treq, Tres, Tmessage, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any, intercept?: (data: Tres, res: (data: Tres) => any, rej: (err: any) => any) => any ) => {
         var worker = new Worker( name );
         var callbacks: { [id: number]: [(data: any) => any, (err: any) => any] } = {};
         var id = 0;
@@ -29,7 +29,12 @@ const Workers = {
             request: <Trequest extends Treq = Treq, Tresponse extends Tres = Tres>( data: Trequest ): Promise<Tresponse> => {
                 return new Promise( (res, rej) => {
                     (data as ID<Trequest>).id = id;
-                    callbacks[id++] = [res, rej];
+                    callbacks[id++] = [data => {
+                        if ( intercept == undefined )
+                            res(data);
+                        else
+                            intercept( data, res as any, rej );
+                    }, rej];
                     worker.postMessage( data );
                 } );
             },
@@ -42,7 +47,12 @@ const Workers = {
                     request: <Trequest extends Treqq>( data: Trequest ): Promise<Tmap[Trequest[Tprop]]> => {
                         return new Promise( (res, rej) => {
                             (data as ID<Trequest>).id = id;
-                            callbacks[id++] = [res, rej];
+                            callbacks[id++] = [data => {
+                                if ( intercept == undefined )
+                                    res(data);
+                                else
+                                    intercept( data, res as any, rej );
+                            }, rej];
                             worker.postMessage( data );
                         } );
                     },
@@ -109,6 +119,14 @@ const sockets = Workers.get<API.Request, API.Response, API.Message, SocketHeartb
     else {
         console.log( heartbeat );
     }
+}, (data, res, rej) => {
+    if ( 'result' in data && data.result == 'session not found' ) {
+        cleanSessionInfo();
+        goToLoginPage( 'Session invalidated' );
+        rej( 'session not found' );
+    }
+
+    res( data );
 } ).mapRequests<'type', API.Request, RequestResponseMap>();
 
 window.addEventListener( 'load', async () => {

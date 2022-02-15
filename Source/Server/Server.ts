@@ -7,12 +7,14 @@ import { FreeLogFile, LogConnecction } from './Logger.js';
 import { UserSession } from './User.js';
 import { SessionKey } from './Session';
 import { Reactive } from './Reactive.js';
+import { PoolSubscription, CreateSessionSubscription } from './Subscription.js';
 
 const app = express();
 const port = 8080;
 const serverName = 'sample-server';
 const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
 const wsSessions = new Map<WebSocket, SessionKey>();
+const wsUserSubscriptions = new Map<WebSocket, PoolSubscription>();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
@@ -84,6 +86,8 @@ wss.addListener( 'connection', (ws, req) => {
     ws.addEventListener( 'close', e => {
         LogConnecction( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
         wsSessions.delete( ws );
+        wsUserSubscriptions.get( ws )?.unsubscribe();
+        wsUserSubscriptions.delete( ws );
         FreeLogFile( address );
     } );
     ws.addEventListener( 'error', err => {
@@ -289,66 +293,36 @@ const ApiHandlers: {
         }
     },
 
-    'subscibeUsers': async (req, socket) => {
-        var key = getSessionKey( socket, req.sessionKey );
+    'subscibeUsers': async (req, ws) => {
+        var key = getSessionKey( ws, req.sessionKey );
 
         if ( isSessionValid( key ) ) {
             var session = loginSessions.getSession( key )!;
             
-            if ( socket != undefined ) {
-                let ws = socket;
-                let reactives: { [uid: number]: Reactive<boolean> } = {};
-
-                function added ( s: UserSession ) {
-                    var reactive = new Reactive<boolean>( s.isActive );
-                    reactives[ s.user.UID ] = reactive;
-                    reactive.AddOnValueChanged( activityChanged( s ), true );
-                }
-                function removed ( s: UserSession ) {
-                    if ( s.user == session.user ) {
-                        loginSessions.entryAdded.removeEventListener( added );
-                        loginSessions.entryRemoved.removeEventListener( removed );
-                        return;
-                    }
-
-                    var data: API.HeartbeatUsers = {
+            if ( ws != undefined && !wsUserSubscriptions.has( ws ) ) {
+                wsUserSubscriptions.set( ws, CreateSessionSubscription<UserSession, boolean>(
+                    loginSessions,
+                    ( session, scan ) => { if ( !scan && session.isActive.Value ) ws.send( JSON.stringify( { 
+                        type: 'heartbeat-users', 
+                        kind: 'added', 
+                        user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName } 
+                    } as API.HeartbeatUsers ) ) },
+                    ( session ) => { if ( session.isActive.Value ) ws.send( JSON.stringify( {
                         type: 'heartbeat-users',
                         kind: 'removed',
-                        uid: s.user.UID
-                    };
-                    ws.send( JSON.stringify( data ) );
-                    delete reactives[ s.user.UID ];
-                }
-
-                function activityChanged ( s: UserSession ) {
-                    return (v: boolean) => {
-                        if ( v ) {
-                            var data: API.HeartbeatUsers = {
-                                type: 'heartbeat-users',
-                                kind: 'added',
-                                user: { nickname: s.user.nickname, location: serverName, uid: s.user.UID }
-                            };
-                            ws.send( JSON.stringify( data ) );
-                        }
-                        else {
-                            var data: API.HeartbeatUsers = {
-                                type: 'heartbeat-users',
-                                kind: 'removed',
-                                uid: s.user.UID
-                            };
-                            ws.send( JSON.stringify( data ) );
-                        }
-                    };
-                }
-
-                for ( const s of Object.values( loginSessions.getAll() ).filter( x => x.user != session.user ) ) {
-                    var reactive = new Reactive<boolean>( s.isActive );
-                    reactives[ s.user.UID ] = reactive;
-                    reactive.AddOnValueChanged( activityChanged( s ) );
-                }
-
-                loginSessions.entryAdded.addEventListener( added );
-                loginSessions.entryRemoved.addEventListener( removed );
+                        uid: session.user.UID
+                    } as API.HeartbeatUsers ) ) },
+                    ( session, value ) => { if ( value ) ws.send( JSON.stringify( {
+                        type: 'heartbeat-users', 
+                        kind: 'added', 
+                        user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName } 
+                    } as API.HeartbeatUsers ) ); else ws.send( JSON.stringify( {
+                        type: 'heartbeat-users',
+                        kind: 'removed',
+                        uid: session.user.UID
+                    } as API.HeartbeatUsers ) ) },
+                    ( session ) => session.isActive
+                ) );
             }
 
             return {

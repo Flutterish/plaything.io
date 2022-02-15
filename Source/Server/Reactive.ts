@@ -5,7 +5,7 @@ export class Reactive<T> {
         if ( value instanceof Reactive ) {
             this.value = value.Value;
 
-            this.bindTo( value );
+            this.BindTo( value );
         }
         else this.value = value;
     }
@@ -57,13 +57,31 @@ export class Reactive<T> {
     }
     private valueChanged: ((value: T, oldValue: T) => any)[] = [];
 
+    RemoveEvents () {
+        this.valueChanged = [];
+    }
+    UnbindAll () {
+        for ( const b of [...this.bindees] ) {
+            var bindee = b.deref();
+            if ( bindee != undefined ) {
+                this.UnfindFrom( bindee );
+            }
+        }
+    }
+
     private bindees: WeakRef<Reactive<T>>[] = [];
     private self: WeakRef<Reactive<T>> = new WeakRef<Reactive<T>>( this );
 
-    bindTo ( other: Reactive<T> ) {
+    BindTo ( other: Reactive<T> ) {
         this.bindees.push( other.self );
         other.bindees.push( this.self );
 
         this.Value = other.Value;
+    }
+    UnfindFrom ( other : Reactive<T> ) {
+        var index = this.bindees.indexOf( other.self );
+        if ( index != -1 ) this.bindees.splice( index );
+        index = other.bindees.indexOf( this.self );
+        if ( index != -1 ) other.bindees.splice( index );
     }
 }
