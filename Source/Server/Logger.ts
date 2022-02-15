@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 function generateCensor ( key: string ) {
     return '[LOGGING FORBIDDEN]';
 }
@@ -35,10 +37,44 @@ function process ( obj: any ): typeof obj {
     }
 }
 
+if ( !fs.existsSync( './Logs/' ) )
+    fs.mkdirSync( './Logs/' );
+
 export function Log ( ...args: any[] ) {
-    console.log( `[${new Date()}]:`, ...args.map( x => process( x ) ) );
+    args = args.map( x => process( x ) );
+    console.log( `[${new Date().toLocaleString()}]:`, ...args );
+
+    saveLog( 'system', args.map( x => typeof x === 'object' ? JSON.stringify( x ) : x ).join( ' ' ) );
 }
 
 export function LogConnecction ( who: string, direction: 'in' | 'out', ...args: any[] ) {
-    console.log( `[${new Date()}]:`, who, direction == 'in' ? '-->' : '<--', ...args.map( x => process( x ) ) );
+    args = args.map( x => process( x ) );
+    console.log( `[${new Date().toLocaleString()}]:`, who, direction == 'in' ? '-->' : '<--', ...args );
+
+    saveLog( who, [who, direction == 'in' ? '-->' : '<--', ...args].map( x => typeof x === 'object' ? JSON.stringify( x ) : x ).join( ' ' ) );
 }
+
+var streams: { [source: string]: [stream: fs.WriteStream, timestamp: number] } = {};
+function saveLog ( source: string, data: string ) {
+    if ( streams[ source ] == undefined )
+        streams[ source ] = [fs.createWriteStream( `./Logs/${source.replace( /:/g, '!' )}.log`, { encoding: 'utf-8', flags: 'a+' } ), Date.now()];
+    
+    streams[ source ][0].write( `[${new Date().toLocaleString()}]: ` + data + '\n' );
+    streams[ source ][1] = Date.now();
+}
+
+export function FreeLogFile ( source: string ) {
+    if ( streams[ source ] != undefined ) {
+        var stream = streams[ source ][0];
+        stream.close();
+        delete streams[ source ];
+    }
+}
+
+setInterval( () => {
+    for ( const source in streams ) {
+        if ( streams[ source ][1] < Date.now() - 1000 * 60 * 8 ) {
+            FreeLogFile( source );
+        }
+    }
+}, 1000 * 60 * 10 );

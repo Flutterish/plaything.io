@@ -3,7 +3,7 @@ import { AllowAnonymousAccess, AnonymousPermitedDevices, getUser, MakeAnonUser, 
 import CreateSessionPool from './Session.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
-import { LogConnecction } from './Logger.js';
+import { FreeLogFile, LogConnecction } from './Logger.js';
 import { UserSession } from './User.js';
 import { SessionKey } from './Session';
 
@@ -69,6 +69,7 @@ wss.addListener( 'connection', (ws, req) => {
     ws.addEventListener( 'close', e => {
         LogConnecction( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
         wsSessions.delete( ws );
+        FreeLogFile( address );
     } );
     ws.addEventListener( 'error', err => {
         LogConnecction( address, 'in', `Error on connection:`, err.message );
