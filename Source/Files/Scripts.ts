@@ -83,7 +83,16 @@ type PageState = {
 };
 
 const sockets = Workers.get<API.Request, API.Response, SocketHeartbeat>( 'WebWorkers/Socket.js', heartbeat => {
-
+    if ( heartbeat.type == 'reconnected' ) {
+        if ( sessionKey != undefined ) {
+            sockets.request<API.RequestSessionExists>( { type: 'sessionExists', sessionKey: sessionKey } ).then( res => {
+                if ( !res.value ) {
+                    cleanSessionInfo();
+                    goToLoginPage( 'Session invalidated' );
+                }
+            } );
+        }
+    }
 } ).mapRequests<'type', API.Request, RequestResponseMap>();
 
 window.addEventListener( 'load', async () => {
@@ -143,9 +152,9 @@ var optionsOverlay: HTMLElement | undefined = undefined;
 var isOverlayInDom = false;
 var isOverlayOpen = false;
 
-function loadPage ( state: PageState ) {
+async function loadPage ( state: PageState ) {
     if ( state.type == 'login' ) {
-        loadLoginPage( state );
+        await loadLoginPage( state );
     }
 }
 
@@ -154,16 +163,32 @@ var sessionKey: SessionKey | undefined | null;
 function logOut () {
     if ( sessionKey != undefined ) {
         sockets.request<API.RequestLogout>( { type: 'logout', sessionKey: sessionKey } );
-        userNickname = undefined;
-        sessionKey = undefined;
+        cleanSessionInfo();
         goToLoginPage();
     }
 }
-async function goToLoginPage () {
-    request( 'login.part', res => {
+function cleanSessionInfo () {
+    userNickname = undefined;
+    sessionKey = undefined;
+    localStorage.removeItem( 'session_key' );
+    localStorage.removeItem( 'nickname' );
+}
+async function goToLoginPage ( ...messages: string[] ) {
+    request( 'login.part', async res => {
         var state: PageState = { type: 'login', html: res };
         window.history.pushState( state, '', 'login' );
-        loadPage( state );
+        await loadPage( state );
+        if ( loginPage != undefined && messages.length > 0 ) {
+            var info = loginPage.querySelector( '#info' ) as HTMLElement;
+            info.innerHTML = `
+                <i class="fa-solid fa-skull"></i>
+            `;
+            for ( const msg of messages ) {
+                var div = document.createElement( 'div' );
+                div.innerText = msg;
+                info.appendChild( div );
+            }
+        }
     } );
 }
 async function loadLoginPage ( state: PageState ) {

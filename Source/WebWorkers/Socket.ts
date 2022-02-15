@@ -1,7 +1,7 @@
 import type { API } from '@Server/Api'
 
 export type SocketHeartbeat = {
-    type: 'connection-error'
+    type: 'connection-error' | 'reconnected'
 };
 
 const worker = this as unknown as Omit<Worker, 'postMessage'> & {
@@ -10,11 +10,17 @@ const worker = this as unknown as Omit<Worker, 'postMessage'> & {
 
 var socketQueue: string[] = [];
 var socket: WebSocket | undefined = undefined;
+var wasConnected = false;
 
 function connect () {
     socket = new WebSocket( 'ws://' + location.host );
 
     socket.addEventListener( 'open', () => {
+        if ( wasConnected ) {
+            worker.postMessage( { type: 'reconnected' } );
+        }
+        wasConnected = true;
+
         for ( const msg of socketQueue ) {
             socket!.send( msg );
         }
