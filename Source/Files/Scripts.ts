@@ -121,6 +121,16 @@ function waitFor ( el: HTMLElement, event: keyof HTMLElementEventMap ): Promise<
     } );
 }
 
+type RequestCache = {
+    loginInformation: DistributiveOmit<API.ResponseLoginInfo, 'id'>,
+    serverInformation: DistributiveOmit<API.ResponseServerInfo, 'id'>
+};
+const cache: Partial<RequestCache> = {};
+async function cachedGet<T extends keyof RequestCache> ( type: T ): Promise<RequestCache[T]> {
+    // @ts-ignore
+    return cache[type] ??= await sockets.request( { type: type } );
+}
+
 var loginPage: ChildNode | undefined = undefined;
 var wrapper: ChildNode | undefined = undefined;
 var optionsOverlay: HTMLElement | undefined = undefined;
@@ -147,18 +157,19 @@ async function loadLoginPage ( state: PageState ) {
     loginPage = template.childNodes[0];
     document.body.appendChild( loginPage );
 
-    sockets.request<API.RequestServerInfo>( { type: 'serverInformation' } ).then( res => {
+    cachedGet( 'serverInformation' ).then( res => {
         serverName.innerText = res.name;
     } );
 
-    var info = await sockets.request<API.RequestLoginInfo>( { type: 'loginInformation' } );
-    if ( info.anonymousAllowed ) {
-        passLabel.setAttribute( 'title', 'Password is not required. You can log in anonymously with a blank password' );
-    }
-    else {
-        passLabel.innerText += '*';
-        passLabel.setAttribute( 'title', 'Password is required' );
-    }
+    cachedGet( 'loginInformation' ).then( info => {
+        if ( info.anonymousAllowed ) {
+            passLabel.setAttribute( 'title', 'Password is not required. You can log in anonymously with a blank password' );
+        }
+        else {
+            passLabel.innerText += '*';
+            passLabel.setAttribute( 'title', 'Password is required' );
+        }
+    } );
 
     nickLabel.innerText += '*';
     nickLabel.setAttribute( 'title', 'Nickname is required' );
