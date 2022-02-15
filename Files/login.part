@@ -7,9 +7,3 @@
     <button aria-label="login" id="login"><i class="fa-solid fa-right-long"></i></button>
     <noflow><div id="info"></div></noflow>
 </vcenter>
-
-<div class="wrapper">
-    <div id="options-button">
-        <i class="fa-solid fa-gear"></i>
-    </div>
-</div>

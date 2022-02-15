@@ -1,0 +1,24 @@
+<div class="overlay">
+    <div class="overlayContent">
+        <center><b notint>Settings</b></center>
+        <hr>
+        <div class="options">
+            <div><label for="theme">Theme:</label></div>
+            <div><select name="theme" id="theme">
+                <option value="dracula" title="The default dark theme" selected>Dracula</option>
+                <option value="cherry" title="A colorful light theme">Cherry</option>
+                <option value="light" title="The default light theme">Light</option>
+            </select></div>
+            <div><label for="showOthers" title="show others' cursors on the control pages">Show Others' Cursors:</label></div>
+            <div><input type="checkbox" name="showOthers" id="showOthers" checked></div>
+
+            <div><label for="chatEnabled" title="show messages created with right click > comment">Show Messages:</label></div>
+            <div><input type="checkbox" name="chatEnabled" id="chatEnabled" checked></div>
+
+            <div><label for="owncolour" title="the colour of your cursor and the accent colour of the website">Accent Colour:</label></div>
+            <div><input type="color" name="owncolour" id="owncolour" value="#ff79c6"></div>
+        </div>
+        <br>
+        <center><small>your settings are saved on the cloud</small></center>
+    </div>
+</div>

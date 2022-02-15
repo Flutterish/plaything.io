@@ -48,6 +48,11 @@ function request(path, cb) {
     request.open('GET', path, true);
     request.send();
 }
+function requestAsync(path) {
+    return new Promise((res, rej) => {
+        request(path, res);
+    });
+}
 var flexFont = function () {
     for (const div of document.getElementsByClassName('font-icon')) {
         var style = window.getComputedStyle(div);
@@ -67,20 +72,35 @@ window.addEventListener('load', () => {
         window.history.pushState(state, '', 'login');
         loadPage(state);
     });
+    request('wrapper.part', res => {
+        loadWrapper(res);
+    });
 });
+function createTemplate(data) {
+    var root = document.createElement('div');
+    root.innerHTML = data;
+    return root;
+}
+var loginPage = undefined;
+var wrapper = undefined;
+var optionsOverlay = undefined;
+var isOverlayInDom = false;
+var isOverlayOpen = false;
 function loadPage(state) {
     if (state.type == 'login') {
         loadLoginPage(state);
     }
 }
 async function loadLoginPage(state) {
-    document.body.innerHTML = state.html;
-    var passLabel = document.getElementById('pass-label');
-    var nickLabel = document.getElementById('nickname-label');
-    var pass = document.getElementById('pass');
-    var nick = document.getElementById('nickname');
-    var submit = document.getElementById('login');
-    var messages = document.getElementById('info');
+    var template = createTemplate(state.html);
+    var passLabel = template.querySelector('#pass-label');
+    var nickLabel = template.querySelector('#nickname-label');
+    var pass = template.querySelector('#pass');
+    var nick = template.querySelector('#nickname');
+    var submit = template.querySelector('#login');
+    var messages = template.querySelector('#info');
+    loginPage = template.childNodes[0];
+    document.body.appendChild(loginPage);
     var info = await sockets.request({ type: 'loginInformation' });
     if (info.anonymousAllowed) {
         passLabel.setAttribute('title', 'Password is not required. You can log in anonymously with a blank password');
@@ -132,4 +152,41 @@ async function loadLoginPage(state) {
             submit.click();
         }
     };
+}
+function loadWrapper(html) {
+    var template = createTemplate(html);
+    var optionsButton = template.querySelector('#options-button');
+    wrapper = template.childNodes[0];
+    document.body.appendChild(wrapper);
+    optionsButton.addEventListener('click', openOptionsOverlay);
+}
+async function openOptionsOverlay() {
+    if (optionsOverlay == undefined) {
+        var template = createTemplate(await requestAsync('optionsOverlay.part'));
+        optionsOverlay = template.childNodes[0];
+        optionsOverlay.addEventListener('click', e => {
+            if (e.target != optionsOverlay)
+                return;
+            closeOptionsOverlay();
+        });
+        window.addEventListener('keydown', e => {
+            if (isOverlayOpen && e.key.toLowerCase() == 'escape') {
+                closeOptionsOverlay();
+            }
+        });
+    }
+    if (!isOverlayInDom) {
+        document.body.appendChild(optionsOverlay);
+        isOverlayInDom = true;
+    }
+    if (!isOverlayOpen) {
+        isOverlayOpen = true;
+        setTimeout(() => optionsOverlay?.classList.add('open'), 1);
+    }
+}
+function closeOptionsOverlay() {
+    if (!isOverlayOpen)
+        return;
+    isOverlayOpen = false;
+    setTimeout(() => optionsOverlay?.classList.remove('open'), 1);
 }

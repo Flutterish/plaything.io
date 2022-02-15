@@ -421,6 +421,16 @@ hr:active {
     backdrop-filter: blur(2px);
     box-sizing: border-box;
     padding: 70px;
+
+    opacity: 0%;
+    transition: opacity 140ms;
+    pointer-events: none;
+}
+
+.overlay.open {
+    transition: opacity 300ms;
+    opacity: 100%;
+    pointer-events: all;
 }
 
 .overlayContent {
@@ -433,6 +443,13 @@ hr:active {
     box-sizing: border-box;
     padding: 32px;
     padding-bottom: 20px;
+
+    transform: scale( 0.7 );
+    transition: transform 140ms ease-out;
+}
+
+.open .overlayContent {
+    transform: scale( 1 );
 }
 
 .options {

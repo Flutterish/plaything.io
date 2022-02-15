@@ -56,6 +56,12 @@ function request ( path: string, cb: (res: string) => any ) {
     request.send();
 }
 
+function requestAsync ( path: string ): Promise<string> {
+    return new Promise( (res, rej) => {
+        request( path, res );
+    } );
+}
+
 var flexFont = function () {
     for ( const div of document.getElementsByClassName( 'font-icon' ) ) {
         var style = window.getComputedStyle( div );
@@ -84,8 +90,24 @@ window.addEventListener( 'load', () => {
         window.history.pushState( state, '', 'login');
         loadPage( state );
     } );
+
+    request( 'wrapper.part', res => {
+        loadWrapper( res );
+    } );
 } );
 
+function createTemplate ( data: string ): HTMLElement {
+    var root = document.createElement( 'div' );
+    root.innerHTML = data;
+    
+    return root;
+}
+
+var loginPage: ChildNode | undefined = undefined;
+var wrapper: ChildNode | undefined = undefined;
+var optionsOverlay: HTMLElement | undefined = undefined;
+var isOverlayInDom = false;
+var isOverlayOpen = false;
 function loadPage ( state: PageState ) {
     if ( state.type == 'login' ) {
         loadLoginPage( state );
@@ -93,14 +115,17 @@ function loadPage ( state: PageState ) {
 }
 
 async function loadLoginPage ( state: PageState ) {
-    document.body.innerHTML = state.html;
+    var template = createTemplate( state.html );
 
-    var passLabel = document.getElementById( 'pass-label' ) as HTMLLabelElement;
-    var nickLabel = document.getElementById( 'nickname-label' ) as HTMLLabelElement;
-    var pass = document.getElementById( 'pass' ) as HTMLInputElement;
-    var nick = document.getElementById( 'nickname' ) as HTMLInputElement;
-    var submit = document.getElementById( 'login' ) as HTMLButtonElement;
-    var messages = document.getElementById( 'info' )!;
+    var passLabel = template.querySelector( '#pass-label' ) as HTMLLabelElement;
+    var nickLabel = template.querySelector( '#nickname-label' ) as HTMLLabelElement;
+    var pass = template.querySelector( '#pass' ) as HTMLInputElement;
+    var nick = template.querySelector( '#nickname' ) as HTMLInputElement;
+    var submit = template.querySelector( '#login' ) as HTMLButtonElement;
+    var messages = template.querySelector( '#info' )!;
+
+    loginPage = template.childNodes[0];
+    document.body.appendChild( loginPage );
 
     var info = await sockets.request<API.RequestLoginInfo>( { type: 'loginInformation' } );
     if ( info.anonymousAllowed ) {
@@ -160,4 +185,51 @@ async function loadLoginPage ( state: PageState ) {
             submit.click();
         }
     }
+}
+
+function loadWrapper ( html: string ) {
+    var template = createTemplate( html );
+
+    var optionsButton = template.querySelector( '#options-button' ) as HTMLDivElement;
+
+    wrapper = template.childNodes[0];
+    document.body.appendChild( wrapper );
+
+    optionsButton.addEventListener( 'click', openOptionsOverlay );
+}
+
+async function openOptionsOverlay () {
+    if ( optionsOverlay == undefined ) {
+        var template = createTemplate( await requestAsync( 'optionsOverlay.part' ) );
+        optionsOverlay = template.childNodes[0] as HTMLElement;
+
+        optionsOverlay.addEventListener( 'click', e => {
+            if ( e.target != optionsOverlay ) return;
+
+            closeOptionsOverlay();
+        } );
+
+        window.addEventListener( 'keydown', e => {
+            if ( isOverlayOpen && e.key.toLowerCase() == 'escape' ) {
+                closeOptionsOverlay();
+            }
+        } )
+    }
+
+    if ( !isOverlayInDom ) {
+        document.body.appendChild( optionsOverlay );
+        isOverlayInDom = true;
+    }
+
+    if ( !isOverlayOpen ) {
+        isOverlayOpen = true;
+        setTimeout( () => optionsOverlay?.classList.add( 'open' ), 1 );
+    }
+}
+
+function closeOptionsOverlay () {
+    if ( !isOverlayOpen ) return;
+
+    isOverlayOpen = false;
+    setTimeout( () => optionsOverlay?.classList.remove( 'open' ), 1 );
 }

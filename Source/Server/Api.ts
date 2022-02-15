@@ -1,5 +1,4 @@
 import type { SessionKey } from "./Session";
-import type { UserSession } from "./Users";
 
 export type Uncertain<T> = { [K in keyof Omit<T, 'type'>]: K extends 'id' ? T[K] : T[K] | undefined };
 type ID<T> = T & { id: number };

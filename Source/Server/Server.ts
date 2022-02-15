@@ -1,5 +1,5 @@
 import express from 'express';
-import { AllowAnonymousAccess, getUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
+import { AllowAnonymousAccess, AnonymousPermitedDevices, getUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
 import { WebSocketServer } from 'ws';
 import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
@@ -13,7 +13,7 @@ const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
 const files = express.static( './../Files', { index: 'main', extensions: ['html'] } );
 app.use( '/', files );
 app.get( '/*', (req, res) => {
-    req.url = '/main';
+    req.url = '/bootstrap';
     files( req, res, () => {
         res.statusCode = 404;
         res.end();
@@ -118,7 +118,7 @@ const ApiHandlers: {
             }
             else {
                 var key = loginSessions.createSession( {
-                    nickname: req.nickname
+                    user: { nickname: req.nickname, allowedDevices: AnonymousPermitedDevices }
                 } );
 
                 return {
@@ -138,7 +138,7 @@ const ApiHandlers: {
         else {
             if ( await verifyUser( user, req.password ) ) {
                 var key = loginSessions.createSession( {
-                    nickname: req.nickname
+                    user: user
                 } );
                 return {
                     result: 'ok',
