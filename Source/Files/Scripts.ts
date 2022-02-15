@@ -134,17 +134,14 @@ window.addEventListener( 'load', async () => {
         loadWrapper( res );
     } );
 
-    var theme = localStorage.getItem( 'theme' );
-    if ( theme != null ) {
-        setTheme( theme );
-    }
-
-    setAccent( localStorage.getItem( 'accent' ) ?? accent );
+    setTheme( localStorage.getItem( 'theme' ) ?? currentTheme, false );
+    setAccent( localStorage.getItem( 'accent' ) ?? accent, false );
 
     var key = localStorage.getItem( 'session_key' );
     if ( key != null && (await sockets.request<API.RequestSessionReconnect>( { type: 'reconnect', sessionKey: key } )).value ) {
         userNickname = localStorage.getItem( 'nickname' );
         sessionKey = key;
+        loadCouldPreferences();
         goToDevicesPage();
     }
     else {
@@ -286,6 +283,7 @@ async function loadLoginPage ( state: PageState ) {
             userNickname = nickname;
             sessionKey = res.sessionKey;
             goToDevicesPage();
+            loadCouldPreferences();
         }
         else {
             messages.innerHTML = `
@@ -365,20 +363,34 @@ function closeOptionsOverlay () {
     setTimeout( () => optionsOverlay?.classList.remove( 'open' ), 10 );
 }
 
+async function loadCouldPreferences () {
+    var prefs = await sockets.request<API.RequestLoadPreferences>( { type: 'load-preferences' } );
+    if ( prefs.result == 'ok' ) {
+        if ( prefs.accent != undefined ) setAccent( prefs.accent, false );
+        if ( prefs.theme != undefined )setTheme( prefs.theme, false );
+    }
+}
+
 var currentTheme = 'dracula';
 var availableThemes: Theme[] = [
     { name: 'Dracula', id: 'dracula', description: 'The default dark theme' },
     { name: 'Cherry', id: 'cherry', description: 'A colorful light theme' },
     { name: 'Light', id: 'light', description: 'The default light theme' },
 ];
-function setTheme ( theme: string ) {
+var cloudSaved: () => any | undefined;
+var localSaved: () => any | undefined;
+function setTheme ( theme: string, save = true ) {
+    localSaved?.();
     document.body.setAttribute( 'theme', currentTheme = theme );
+    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', theme: theme } ).then( () => cloudSaved?.() );
     localStorage.setItem( 'theme', currentTheme );
 }
 
 var accent = '#ff79c6';
-function setAccent ( newAccent: string ) {
+function setAccent ( newAccent: string, save = true ) {
+    localSaved?.();
     document.body.style.setProperty( '--accent', accent = newAccent );
+    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', accent: accent } ).then( () => cloudSaved?.() );
     localStorage.setItem( 'accent', accent );
 }
 
@@ -386,7 +398,9 @@ function updateOptionsOverlay () {
     var list = optionsOverlay!.querySelector( '.options' ) as HTMLElement;
     var saved = optionsOverlay!.querySelector( '#settings-saved' ) as HTMLElement;
 
-    saved.innerText = 'your settings are saved locally'; // your settings are saved on the cloud
+    localSaved = () => saved.innerText = 'your settings are saved locally';
+    cloudSaved = () => saved.innerText = 'your settings are saved on the cloud'
+    saved.innerText = 'your settings are saved locally';
 
     list.innerHTML = '';
     function addTheme () {
@@ -508,7 +522,7 @@ async function loadDevicesPage ( state: PageState ) {
     var nooneText: Text | undefined;
     var usercount = 0;
     var users: { [uid: number]: [HTMLElement, Text, HTMLElement] } = {};
-    function addUser ( nick: string, location: string, uid: number ) {
+    function addUser ( nick: string, location: string, uid: number, accent: string ) {
         if ( nooneText != undefined ) {
             nooneText.remove();
             nooneText = undefined;
@@ -516,6 +530,7 @@ async function loadDevicesPage ( state: PageState ) {
 
         var b = document.createElement( 'b' );
         b.innerText = nick;
+        b.style.setProperty( '--accent', accent );
         var text = document.createTextNode( ` @ ${location}` );
         var br = document.createElement( 'br' );
 
@@ -539,17 +554,18 @@ async function loadDevicesPage ( state: PageState ) {
             usersList.append( nooneText = document.createTextNode( 'No one!' ) );
         }
     }
-    function updateUser ( uid: number, location: string ) {
+    function updateUser ( uid: number, location: string, accent: string ) {
         var [b, text, br] = users[ uid ];
         text.nodeValue = ` @ ${location}`;
+        b.style.setProperty( '--accent', accent );
     }
 
     heartbeatHandlers.userList = e => {
         if ( e.kind == 'added' ) {
-            addUser( e.user.nickname, e.user.location, e.user.uid );
+            addUser( e.user.nickname, e.user.location, e.user.uid, e.user.accent );
         }
         else if ( e.kind == 'updated' ) {
-            updateUser( e.user.uid, e.user.location );
+            updateUser( e.user.uid, e.user.location, e.user.accent );
         }
         else if ( e.kind == 'removed' ) {
             removeUser( e.uid );
@@ -558,7 +574,7 @@ async function loadDevicesPage ( state: PageState ) {
     sockets.request<API.SubscribeUsers>( { type: 'subscibeUsers' } ).then( res => {
         if ( res.result == 'ok' ) {
             for ( const user of res.users ) {
-                addUser( user.nickname, user.location, user.uid );
+                addUser( user.nickname, user.location, user.uid, user.accent );
             }
         }
 

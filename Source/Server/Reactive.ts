@@ -64,7 +64,7 @@ export class Reactive<T> {
         for ( const b of [...this.bindees] ) {
             var bindee = b.deref();
             if ( bindee != undefined ) {
-                this.UnfindFrom( bindee );
+                this.UnbindFrom( bindee );
             }
         }
     }
@@ -78,7 +78,7 @@ export class Reactive<T> {
 
         this.Value = other.Value;
     }
-    UnfindFrom ( other : Reactive<T> ) {
+    UnbindFrom ( other : Reactive<T> ) {
         var index = this.bindees.indexOf( other.self );
         if ( index != -1 ) this.bindees.splice( index );
         index = other.bindees.indexOf( this.self );

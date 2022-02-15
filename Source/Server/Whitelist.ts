@@ -2,6 +2,7 @@ import { User } from "./User";
 import bcrypt from 'bcryptjs';
 import { Device } from "./Device";
 import { DeviceList } from "./DeviceList.js";
+import { Reactive } from "./Reactive.js";
 
 var nextUID = 0;
 function makeUserSync ( nick: string, pass: string, devices: Device[] = [] ): User {
@@ -9,6 +10,7 @@ function makeUserSync ( nick: string, pass: string, devices: Device[] = [] ): Us
         nickname: nick,
         passwordHash: bcrypt.hashSync( pass ),
         allowedDevices: devices,
+        accent: new Reactive<string>( '#ff79c6' ),
         UID: nextUID++
     };
 }
@@ -33,6 +35,7 @@ export function MakeAnonUser ( nickname: string ): User {
     return {
         nickname: nickname,
         allowedDevices: AnonymousPermitedDevices,
+        accent: new Reactive<string>( '#ff79c6' ),
         UID: nextUID++
     };
 }

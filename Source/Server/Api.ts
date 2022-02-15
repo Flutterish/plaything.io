@@ -16,10 +16,14 @@ export type RequestResponseMap = {
         : Req extends API.RequestSessionReconnect['type'] ? API.ResponseSesssionExists
         : Req extends API.SubscribeDevices['type'] ? API.ResponseSubscribeDevices
         : Req extends API.SubscribeUsers['type'] ? API.ResponseSubscribeUsers
+        : Req extends API.RequestLoadPreferences['type'] ? API.ResponseLoadPreferences
+        : Req extends API.RequestSavePreferences['type'] ? API.Ack | API.InvalidSession
         : API.Ack
 };
 
 export namespace API {
+    export type InvalidSession = { result: 'session not found' }
+    export type SessionRequest = { sessionKey?: SessionKey }
     export type RequestLoginInfo = {
         type: 'loginInformation'
     }
@@ -32,26 +36,35 @@ export namespace API {
         password?: string
     }
     export type RequestLogout = {
-        type: 'logout',
-        sessionKey?: SessionKey
-    }
+        type: 'logout'
+    } & SessionRequest
     export type RequestSessionReconnect = {
-        type: 'reconnect',
-        sessionKey: SessionKey
-    }
+        type: 'reconnect'
+    } & SessionRequest
+    export type RequestSavePreferences = {
+        type: 'save-prefereces',
+        theme?: string,
+        accent?: string
+    } & SessionRequest
+    export type RequestLoadPreferences = {
+        type: 'load-preferences'
+    } & SessionRequest
     export type SubscribeDevices = {
-        type: 'subscibeDevices',
-        sessionKey?: SessionKey
-    }
+        type: 'subscibeDevices'
+    } & SessionRequest
     export type SubscribeUsers = {
-        type: 'subscibeUsers',
-        sessionKey?: SessionKey
-    }
+        type: 'subscibeUsers'
+    } & SessionRequest
     export type AliveAck = {
-        type: 'alive',
-        sessionKey?: SessionKey
-    }
-    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionReconnect | SubscribeDevices | SubscribeUsers;
+        type: 'alive'
+    } & SessionRequest
+
+    type RequestTypes = 
+        RequestLoginInfo | RequestServerInfo 
+        | RequestLogin | RequestLogout | RequestSessionReconnect 
+        | SubscribeDevices | SubscribeUsers 
+        | RequestSavePreferences | RequestLoadPreferences;
+
     export type Request = Extract<RequestTypes, {type: string}>
     type MessageTypes = AliveAck
     export type Message = Extract<MessageTypes, {type: string}>
@@ -78,15 +91,16 @@ export namespace API {
     export type ResponseSubscribeDevices = {
         result: 'ok',
         devices: string[]
-    } | {
-        result: 'session not found'
-    }
+    } | InvalidSession
     export type ResponseSubscribeUsers = {
         result: 'ok',
-        users: { nickname: string, location: string, uid: number }[]
-    } | {
-        result: 'session not found'
-    }
+        users: { nickname: string, location: string, uid: number, accent: string }[]
+    } | InvalidSession
+    export type ResponseLoadPreferences = {
+        result: 'ok',
+        theme?: string,
+        accent?: string
+    } | InvalidSession
     export type Ack = { result: boolean }
     export type Error = {
         error: string
@@ -103,7 +117,7 @@ export namespace API {
         type: 'heartbeat-users'
     } & ({
         kind: 'added' | 'updated',
-        user: { nickname: string, location: string, uid: number }
+        user: { nickname: string, location: string, uid: number, accent: string }
     } | {
         kind: 'removed',
         uid: number

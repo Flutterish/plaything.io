@@ -5,7 +5,9 @@ export type User = {
     nickname: string,
     UID: number,
     passwordHash?: string,
-    allowedDevices: Device[]
+    allowedDevices: Device[],
+    accent: Reactive<string>,
+    theme?: string
 };
 
 export class UserSession {

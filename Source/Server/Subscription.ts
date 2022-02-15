@@ -1,45 +1,34 @@
 import { Reactive } from "./Reactive.js";
 import { SessionKey } from './Session';
 
-export type PoolSubscription = {
-    unsubscribe: () => any
+export type PoolSubscription<Tsession> = {
+    unsubscribe: () => any,
+    ReactTo: <Treactive>( 
+        get: (session: Tsession) => Reactive<Treactive>,
+        react: (session: Tsession, value: Treactive) => any
+    ) => PoolSubscription<Tsession>
 };
 
-export function CreateSessionSubscription<Tsession, Treactive> (
+export function CreateSessionSubscription<Tsession> (
     sessionPool: {
         entryAdded: { addEventListener: (fn: typeof added) => any, removeEventListener: (fn: typeof added) => any },
         entryRemoved: { addEventListener: (fn: typeof removed) => any, removeEventListener: (fn: typeof removed) => any },
         getAll: () => Readonly<{[Key: SessionKey]: Tsession }>
     },
     added: ( session: Tsession, scan?: true ) => any,
-    removed: ( session: Tsession ) => any,
-    valueChanged: ( session: Tsession, value: Treactive ) => any,
-    getReactive: ( session: Tsession ) => Reactive<Treactive>
-): PoolSubscription {
-    const reactives = new Map<Tsession, Reactive<Treactive>>();
-
+    removed: ( session: Tsession ) => any
+): PoolSubscription<Tsession> {
     function entryAdded ( session: Tsession, scan?: true ) {
-        var reactive = new Reactive<Treactive>( getReactive( session ) );
-        reactives.set( session, reactive );
-        reactive.AddOnValueChanged( v => valueChanged( session, v ) );
         added( session, scan );
     }
     
     function entryRemoved ( session: Tsession ) {
-        var reactive = reactives.get( session );
-        reactive?.RemoveEvents();
-        reactives.delete( session );
         removed( session );
     }
     
     function unsubscribe () {
         sessionPool.entryAdded.removeEventListener( entryAdded );
         sessionPool.entryRemoved.removeEventListener( entryRemoved );
-    
-        for ( const k of reactives ) {
-            k[1].RemoveEvents();
-        }
-        reactives.clear();
     }
     
     sessionPool.entryAdded.addEventListener( entryAdded );
@@ -50,7 +39,44 @@ export function CreateSessionSubscription<Tsession, Treactive> (
         added( all[key], true );
     }
 
+    function reactToFactory () {
+        return <Treactive>( 
+            get: (session: Tsession) => Reactive<Treactive>,
+            react: (session: Tsession, value: Treactive) => any
+        ) => {
+            const reactives = new Map<Tsession, Reactive<Treactive>>();
+
+            var chainAdded = added;
+            added = (session, scan) => {
+                var reactive = new Reactive<Treactive>( get( session ) );
+                reactives.set( session, reactive );
+                reactive.AddOnValueChanged( v => react( session, v ) );
+                chainAdded( session, scan );
+            }
+
+            var chainRemoved = removed;
+            removed = (session) => {
+                var reactive = reactives.get( session );
+                reactive?.RemoveEvents();
+                reactives.delete( session );
+                chainRemoved( session );
+            };
+
+            return {
+                unsubscribe: () => {
+                    for ( const k of reactives ) {
+                        k[1].RemoveEvents();
+                    }
+                    reactives.clear();
+                    unsubscribe();
+                },
+                ReactTo: reactToFactory()
+            }
+        };
+    }
+
     return {
-        unsubscribe: unsubscribe
+        unsubscribe: unsubscribe,
+        ReactTo: reactToFactory()
     };
 }

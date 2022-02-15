@@ -14,7 +14,7 @@ const port = 8080;
 const serverName = 'sample-server';
 const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
 const wsSessions = new Map<WebSocket, SessionKey>();
-const wsUserSubscriptions = new Map<WebSocket, PoolSubscription>();
+const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<UserSession>>();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
@@ -24,6 +24,7 @@ setInterval( () => {
     for ( const key in loginSessions.getAll() ) {
         var session = loginSessions.getSession( key )!;
 
+        // TODO if a websocket exists on this connection, it is active
         session.isActive.Value = session.lastActive + 20 * 1000 > now;
         if ( session.lastActive + 24 * 60 * 60 * 1000 < now ) {
             loginSessions.destroySession( key );
@@ -183,6 +184,12 @@ async function processRequest (req: (API.Request & { id?: number }) | API.Messag
 const ApiHandlers: {
     [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>, ws?: WebSocket) => Promise<RequestResponseMap[Key]>
 } = {
+    'serverInformation': async req => {
+        return {
+            name: serverName
+        };
+    },
+
     'loginInformation': async req => {
         return { anonymousAllowed: AllowAnonymousAccess };
     },
@@ -243,10 +250,14 @@ const ApiHandlers: {
         }
     },
 
-    'serverInformation': async req => {
+    'reconnect': async (req, ws) => {
+        var isValid = isSessionValid( req.sessionKey );
+        if ( ws != undefined && isValid )
+            wsSessions.set( ws, req.sessionKey! );
+
         return {
-            name: serverName
-        };
+            value: isValid
+        }
     },
 
     'logout': async (req, ws) => {
@@ -267,75 +278,81 @@ const ApiHandlers: {
         }
     },
 
-    'reconnect': async (req, ws) => {
-        var isValid = isSessionValid( req.sessionKey );
-        if ( ws != undefined && isValid )
-            wsSessions.set( ws, req.sessionKey! );
+    'subscibeDevices': SessionHandler( async ( session, req, ws ) => {
+        return {
+            result: 'ok',
+            devices: session.user.allowedDevices.map( x => x.name )
+        }
+        // TODO heartbeat-devices when this goes reactive
+    } ),
+
+    'subscibeUsers': SessionHandler( async ( session, req, ws ) => {
+        if ( ws != undefined && !wsUserSubscriptions.has( ws ) ) {
+            wsUserSubscriptions.set( ws, CreateSessionSubscription<UserSession>(
+                loginSessions,
+                ( session, scan ) => { if ( !scan && session.isActive.Value ) ws.send( JSON.stringify( { 
+                    type: 'heartbeat-users', 
+                    kind: 'added', 
+                    user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName, accent: session.user.accent.Value } 
+                } as API.HeartbeatUsers ) ) },
+                ( session ) => { if ( session.isActive.Value ) ws.send( JSON.stringify( {
+                    type: 'heartbeat-users',
+                    kind: 'removed',
+                    uid: session.user.UID
+                } as API.HeartbeatUsers ) ) }
+            ).ReactTo( session => session.isActive, ( session, value ) => { if ( value ) ws.send( JSON.stringify( {
+                    type: 'heartbeat-users', 
+                    kind: 'added', 
+                    user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName, accent: session.user.accent.Value } 
+                } as API.HeartbeatUsers ) ); else ws.send( JSON.stringify( {
+                    type: 'heartbeat-users',
+                    kind: 'removed',
+                    uid: session.user.UID
+                } as API.HeartbeatUsers ) ) }
+            ).ReactTo( session => session.user.accent, ( session, value ) => { if ( session.isActive.Value ) ws.send( JSON.stringify( {
+                    type: 'heartbeat-users',
+                    kind: 'updated',
+                    user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName, accent: value } 
+            } as API.HeartbeatUsers ) ) } ) );
+        }
 
         return {
-            value: isValid
+            result: 'ok',
+            users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user && x.isActive.Value )
+                .map( x => ({ nickname: x.user.nickname, location: serverName, uid: x.user.UID, accent: x.user.accent.Value }) )   
         }
-    },
+    } ),
 
-    'subscibeDevices': async (req, ws) => {
+    'save-prefereces': SessionHandler( async ( session, req, ws ) => {
+        if ( typeof req.accent === 'string' )
+            session.user.accent.Value = req.accent;
+
+        if ( typeof req.theme === 'string' )
+            session.user.theme = req.theme;
+
+        return { result: true };
+    } ),
+
+    'load-preferences': SessionHandler( async ( session, req, ws ) => {
+        return {
+            result: 'ok',
+            accent: session.user.accent.Value,
+            theme: session.user.theme
+        };
+    } )
+};
+
+function SessionHandler<Treq extends API.SessionRequest, Tres> ( code: (session: UserSession, req: Treq, ws?: WebSocket) => Promise<Tres> ): (( req: Treq, ws?: WebSocket ) => Promise<Tres | API.InvalidSession>) {
+    return async (req, ws) => {
         var key = getSessionKey( ws, req.sessionKey );
-
         if ( isSessionValid( key ) ) {
-            var session = loginSessions.getSession( key )!;
-            return {
-                result: 'ok',
-                devices: session.user.allowedDevices.map( x => x.name )
-            }
-            // TODO heartbeat-devices when this goes reactive
+            return await code( loginSessions.getSession( key )!, req, ws );
         }
         else return {
-            result: 'session not found'
-        }
-    },
-
-    'subscibeUsers': async (req, ws) => {
-        var key = getSessionKey( ws, req.sessionKey );
-
-        if ( isSessionValid( key ) ) {
-            var session = loginSessions.getSession( key )!;
-            
-            if ( ws != undefined && !wsUserSubscriptions.has( ws ) ) {
-                wsUserSubscriptions.set( ws, CreateSessionSubscription<UserSession, boolean>(
-                    loginSessions,
-                    ( session, scan ) => { if ( !scan && session.isActive.Value ) ws.send( JSON.stringify( { 
-                        type: 'heartbeat-users', 
-                        kind: 'added', 
-                        user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName } 
-                    } as API.HeartbeatUsers ) ) },
-                    ( session ) => { if ( session.isActive.Value ) ws.send( JSON.stringify( {
-                        type: 'heartbeat-users',
-                        kind: 'removed',
-                        uid: session.user.UID
-                    } as API.HeartbeatUsers ) ) },
-                    ( session, value ) => { if ( value ) ws.send( JSON.stringify( {
-                        type: 'heartbeat-users', 
-                        kind: 'added', 
-                        user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName } 
-                    } as API.HeartbeatUsers ) ); else ws.send( JSON.stringify( {
-                        type: 'heartbeat-users',
-                        kind: 'removed',
-                        uid: session.user.UID
-                    } as API.HeartbeatUsers ) ) },
-                    ( session ) => session.isActive
-                ) );
-            }
-
-            return {
-                result: 'ok',
-                users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user && x.isActive.Value )
-                    .map( x => ({ nickname: x.user.nickname, location: serverName, uid: x.user.UID }) )   
-            }
-        }
-        else return {
-            result: 'session not found'
+            'result': 'session not found'
         }
     }
-};
+}
 
 const MessageHandlers : {
     [Key in API.Message['type']]: (req: Uncertain<Extract<API.Message, { type: Key }>>, ws?: WebSocket) => Promise<void>
