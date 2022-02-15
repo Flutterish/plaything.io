@@ -1,3 +1,5 @@
+import { CreateEvent } from "./Events.js";
+
 export type SessionKey = string;
 
 function nextKey () {
@@ -13,12 +15,17 @@ function nextKey () {
 export default function CreateSessionPool<Tdata> ( name?: string ) {
     var sessions: { [key: SessionKey]: Tdata } = {};
 
+    var [entryAddedEvent, entryAddedTrigger] = CreateEvent<Tdata>();
+    var [entryRemovedEvent, entryRemovedTrigger] = CreateEvent<Tdata>();
+
     function generateSession ( data: Tdata ) {
         do {
             var key = nextKey();
         }
         while ( sessions[key] != undefined );
         sessions[key] = data;
+
+        entryAddedTrigger( data );
 
         return key;
     }
@@ -29,13 +36,23 @@ export default function CreateSessionPool<Tdata> ( name?: string ) {
         createSession: generateSession,
         sessionExists: ( key: SessionKey ) => sessions[key] != undefined,
         getSession: ( key: SessionKey ): Tdata | undefined => sessions[key],
-        destroySession: ( key: SessionKey ) => delete sessions[key],
+        destroySession: ( key: SessionKey ) => {
+            var data = sessions[key];
+            if ( data != undefined ) {
+                delete sessions[key];
+                entryRemovedTrigger( data );
+            }
+        },
+        getAll: (): Readonly<typeof sessions> => sessions,
+        entryAdded: entryAddedEvent,
+        entryRemoved: entryRemovedEvent,
 
         WithIndex: <Tindex>( fn: (data: Tdata) => Tindex ) => {
             var index = new Map<Tindex, SessionKey>();
 
             return {
                 name: name,
+                getAll: pool.getAll,
                 createSession: ( data: Tdata ) => {
                     var key = pool.createSession( data );
                     index.set( fn( data ), key );
@@ -61,7 +78,9 @@ export default function CreateSessionPool<Tdata> ( name?: string ) {
                     if ( session == undefined ) return;
                     index.delete( key );
                     pool.destroySession( session );
-                }
+                },
+                entryAdded: pool.entryAdded,
+                entryRemoved: pool.entryRemoved
             };
         }
     };

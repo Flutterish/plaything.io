@@ -15,7 +15,8 @@ export type RequestResponseMap = {
         : Req extends API.RequestLogout['type'] ? API.ResponseLogout
         : Req extends API.RequestSessionExists['type'] ? API.ResponseSesssionExists
         : Req extends API.SubscribeDevices['type'] ? API.ResponseSubscribeDevices
-        : never
+        : Req extends API.SubscribeUsers['type'] ? API.ResponseSubscribeUsers
+        : API.Ack
 };
 
 export namespace API {
@@ -42,7 +43,11 @@ export namespace API {
         type: 'subscibeDevices',
         sessionKey: SessionKey
     }>
-    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionExists | SubscribeDevices;
+    export type SubscribeUsers = ID<{
+        type: 'subscibeUsers',
+        sessionKey: SessionKey
+    }>
+    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionExists | SubscribeDevices | SubscribeUsers;
     export type Request = Extract<RequestTypes, ID<{type: string}>>
 
     export type ResponseLoginInfo = ID<{
@@ -70,6 +75,13 @@ export namespace API {
     } | {
         result: 'session not found'
     }>
+    export type ResponseSubscribeUsers = ID<{
+        result: 'ok',
+        users: { nickname: string, location: string }[]
+    } | {
+        result: 'session not found'
+    }>
+    export type Ack = ID<{ result: boolean }>
     export type Error = ID<{
         error: string
     }>
@@ -81,6 +93,15 @@ export namespace API {
         kind: 'added' | 'removed',
         value: string[]
     }
-    type HeartbeatTypes = HeartbeatDevices
+    export type HeartbeatUsers = {
+        type: 'heartbeat-users'
+    } & ({
+        kind: 'added' | 'updated',
+        user: { nickname: string, location: string }
+    } | {
+        kind: 'removed',
+        user: string
+    })
+    type HeartbeatTypes = HeartbeatDevices | HeartbeatUsers
     export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>
 };

@@ -1,7 +1,7 @@
 import express from 'express';
 import { AllowAnonymousAccess, AnonymousPermitedDevices, getUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
 import { LogConnecction } from './Logger.js';
 import { UserSession } from './User.js';
@@ -47,7 +47,7 @@ wss.addListener( 'connection', (ws, req) => {
                 LogConnecction( address, 'out', r );
             }
             else {
-                ApiHandlers.processRequest( data ).then( res => {
+                ApiHandlers.processRequest( data, ws ).then( res => {
                     ws.send( JSON.stringify( res ) );
                     LogConnecction( address, 'out', res );
                 } );
@@ -84,12 +84,12 @@ function isSessionValid ( key?: string ): key is string {
 }
 
 const ApiHandlers: {
-    [Key in API.Request['type']]: (req: Uncertain<DistributiveOmit<Extract<API.Request, { type: Key }>, 'id'>>) => Promise<DistributiveOmit<RequestResponseMap[Key], 'id'>>
-} & { processRequest: (req: API.Request) => Promise<API.Response> } = {
-    processRequest: async (req: API.Request): Promise<API.Response> => {
+    [Key in API.Request['type']]: (req: Uncertain<DistributiveOmit<Extract<API.Request, { type: Key }>, 'id'>>, ws?: WebSocket) => Promise<DistributiveOmit<RequestResponseMap[Key], 'id'>>
+} & { processRequest: (req: API.Request, ws?: WebSocket) => Promise<API.Response> } = {
+    processRequest: async (req: API.Request, ws?: WebSocket): Promise<API.Response> => {
         if ( req.type in ApiHandlers ) {
-            var handler = ApiHandlers[req.type] as (req: API.Request) => Promise<DistributiveOmit<API.Response, 'id'>>;
-            var val = await handler( req ) as API.Response;
+            var handler = ApiHandlers[req.type] as (req: API.Request, ws?: WebSocket) => Promise<DistributiveOmit<API.Response, 'id'>>;
+            var val = await handler( req, ws ) as API.Response;
             val.id = req.id;
 
             return val;
@@ -191,6 +191,50 @@ const ApiHandlers: {
                 devices: session.user.allowedDevices.map( x => x.name )
             }
             // TODO heartbeat-devices when this goes reactive
+        }
+        else return {
+            result: 'session not found'
+        }
+    },
+
+    'subscibeUsers': async (req, socket) => {
+        if ( isSessionValid( req.sessionKey ) ) {
+            var session = loginSessions.getSession( req.sessionKey )!;
+            
+            if ( socket != undefined ) {
+                let ws = socket;
+                function added ( s: UserSession ) {
+                    var data: API.HeartbeatUsers = {
+                        type: 'heartbeat-users',
+                        kind: 'added',
+                        user: { nickname: s.user.nickname, location: serverName }
+                    };
+                    ws.send( JSON.stringify( data ) );
+                }
+                function removed ( s: UserSession ) {
+                    if ( s.user == session.user ) {
+                        loginSessions.entryAdded.removeEventListener( added );
+                        loginSessions.entryRemoved.removeEventListener( removed );
+                        return;
+                    }
+
+                    var data: API.HeartbeatUsers = {
+                        type: 'heartbeat-users',
+                        kind: 'removed',
+                        user: s.user.nickname
+                    };
+                    ws.send( JSON.stringify( data ) );
+                }
+
+                loginSessions.entryAdded.addEventListener( added );
+                loginSessions.entryRemoved.addEventListener( removed );
+            }
+
+            return {
+                result: 'ok',
+                users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user ).map( x => ({ nickname: x.user.nickname, location: serverName }) )   
+            }
+            // TODO heartbeat-users when this goes reactive
         }
         else return {
             result: 'session not found'

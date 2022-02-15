@@ -1,7 +1,10 @@
 import type { API } from '@Server/Api'
 
 export type SocketHeartbeat = {
-    type: 'connection-error' | 'reconnected'
+    type: 'reconnected'
+} | {
+    type: 'connection-error',
+    message: any
 } | API.Heartbeat;
 
 const worker = this as unknown as Omit<Worker, 'postMessage'> & {
@@ -39,7 +42,7 @@ function connect () {
     } );
 
     socket.addEventListener( 'error', err => {
-        worker.postMessage( { type: 'connection-error' } );
+        worker.postMessage( { type: 'connection-error', message: err } );
     } );
 }
 connect();

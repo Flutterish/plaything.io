@@ -82,6 +82,10 @@ type PageState = {
     html: string
 };
 
+type HeartbeatHandlers = {
+    userList?: (e: API.HeartbeatUsers) => any
+};
+const heartbeatHandlers: HeartbeatHandlers = {};
 const sockets = Workers.get<API.Request, API.Response, SocketHeartbeat>( 'WebWorkers/Socket.js', heartbeat => {
     if ( heartbeat.type == 'reconnected' ) {
         if ( sessionKey != undefined ) {
@@ -92,6 +96,12 @@ const sockets = Workers.get<API.Request, API.Response, SocketHeartbeat>( 'WebWor
                 }
             } );
         }
+    }
+    else if ( heartbeat.type == 'heartbeat-users' ) {
+        heartbeatHandlers.userList?.( heartbeat );
+    }
+    else {
+        console.log( heartbeat );
     }
 } ).mapRequests<'type', API.Request, RequestResponseMap>();
 
@@ -449,7 +459,7 @@ async function loadDevicesPage ( state: PageState ) {
     devicesPage = template.childNodes[0] as HTMLElement;
 
     var listing = devicesPage.querySelector( '.listing' ) as HTMLElement;
-    var users = devicesPage.querySelector( '#users' ) as HTMLElement;
+    var usersList = devicesPage.querySelector( '#users' ) as HTMLElement;
 
     sockets.request<API.SubscribeDevices>( { type: 'subscibeDevices', sessionKey: sessionKey! } ).then( res => {
         if ( res.result == 'ok' ) {
@@ -463,6 +473,65 @@ async function loadDevicesPage ( state: PageState ) {
 
         if ( res.result != 'ok' || res.devices.length == 0 ) {
             listing.append( 'Nothing!' );
+        }
+    } );
+
+    var nooneText: Text | undefined;
+    var usercount = 0;
+    var users: { [nick: string]: [HTMLElement, Text, HTMLElement] } = {};
+    function addUser ( nick: string, location: string ) {
+        if ( nooneText != undefined ) {
+            nooneText.remove();
+            nooneText = undefined;
+        }
+
+        var b = document.createElement( 'b' );
+        b.innerText = nick;
+        var text = document.createTextNode( ` @ ${location}` );
+        var br = document.createElement( 'br' );
+
+        usersList.append( b, text, br );
+        users[ nick ] = [b, text, br];
+        usercount++;
+    }
+    function removeUser ( nick: string ) {
+        var [b, text, br] = users[ nick ];
+        b.remove();
+        text.remove();
+        br.remove();
+
+        delete users[ nick ];
+        usercount--;
+
+        if ( usercount == 0 ) {
+            usersList.append( nooneText = document.createTextNode( 'No one!' ) );
+        }
+    }
+    function updateUser ( nick: string, location: string ) {
+        var [b, text, br] = users[ nick ];
+        text.nodeValue = ` @ ${location}`;
+    }
+
+    heartbeatHandlers.userList = e => {
+        if ( e.kind == 'added' ) {
+            addUser( e.user.nickname, e.user.location );
+        }
+        else if ( e.kind == 'updated' ) {
+            updateUser( e.user.nickname, e.user.location );
+        }
+        else if ( e.kind == 'removed' ) {
+            removeUser( e.user );
+        }
+    };
+    sockets.request<API.SubscribeUsers>( { type: 'subscibeUsers', sessionKey: sessionKey! } ).then( res => {
+        if ( res.result == 'ok' ) {
+            for ( const user of res.users ) {
+                addUser( user.nickname, user.location );
+            }
+        }
+
+        if ( res.result != 'ok' || res.users.length == 0 ) {
+            usersList.append( nooneText = document.createTextNode( 'No one!' ) );
         }
     } );
 
