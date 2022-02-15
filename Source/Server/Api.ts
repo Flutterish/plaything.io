@@ -47,8 +47,14 @@ export namespace API {
         type: 'subscibeUsers',
         sessionKey?: SessionKey
     }
+    export type AliveAck = {
+        type: 'alive',
+        sessionKey?: SessionKey
+    }
     type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionReconnect | SubscribeDevices | SubscribeUsers;
     export type Request = Extract<RequestTypes, {type: string}>
+    type MessageTypes = AliveAck
+    export type Message = Extract<MessageTypes, {type: string}>
 
     export type ResponseLoginInfo = {
         anonymousAllowed: boolean

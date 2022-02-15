@@ -30,7 +30,6 @@ export default function CreateSessionPool<Tdata> ( name?: string ) {
         return key;
     }
 
-    // TODO expire sessions
     var pool = {
         name: name,
         createSession: generateSession,

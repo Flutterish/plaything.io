@@ -1,11 +1,12 @@
 import express from 'express';
-import { AllowAnonymousAccess, AnonymousPermitedDevices, getUser, MakeAnonUser, verifyUser, WhitelistedUsers } from './Whitelist.js';
+import { AllowAnonymousAccess, getUser, MakeAnonUser, verifyUser } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
 import { WebSocketServer, WebSocket } from 'ws';
-import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
+import { API, RequestResponseMap, Uncertain } from './Api';
 import { FreeLogFile, LogConnecction } from './Logger.js';
 import { UserSession } from './User.js';
 import { SessionKey } from './Session';
+import { Reactive } from './Reactive.js';
 
 const app = express();
 const port = 8080;
@@ -15,6 +16,18 @@ const wsSessions = new Map<WebSocket, SessionKey>();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
+
+setInterval( () => {
+    var now = Date.now();
+    for ( const key in loginSessions.getAll() ) {
+        var session = loginSessions.getSession( key )!;
+
+        session.isActive.Value = session.lastActive + 20 * 1000 > now;
+        if ( session.lastActive + 24 * 60 * 60 * 1000 < now ) {
+            loginSessions.destroySession( key );
+        }
+    }
+}, 30 * 1000 );
 
 const files = express.static( './../Files', { index: 'main', extensions: ['html'] } );
 app.get( '/api/*', async (req, res) => {
@@ -45,11 +58,13 @@ app.get( '/api/*', async (req, res) => {
         return;
     }
 
-    LogConnecction( req.ip, 'in', request );
+    if ( request.type in ApiHandlers ) LogConnecction( req.ip, 'in', request );
     res.setHeader( 'content-type', 'application/json' );
     var data = await processRequest( request );
-    LogConnecction( req.ip, 'out', data );
-    res.send( JSON.stringify( data ) );
+    if ( data != undefined ) {
+        LogConnecction( req.ip, 'out', data );
+        res.send( JSON.stringify( data ) );
+    }
     res.end();
 } );
 app.use( '/', files );
@@ -78,9 +93,9 @@ wss.addListener( 'connection', (ws, req) => {
         var str = msg.data.toString();
         try {
             var data = JSON.parse( str );
-            LogConnecction( address, 'in', data );
+            if ( data.type in ApiHandlers ) LogConnecction( address, 'in', data );
 
-            if ( typeof data !== 'object' || typeof data.id !== 'number' || typeof data.type !== 'string' ) {
+            if ( typeof data !== 'object' || typeof data.type !== 'string' ) {
                 var r = {
                     error: 'Invalid request',
                     id: data?.id
@@ -90,8 +105,10 @@ wss.addListener( 'connection', (ws, req) => {
             }
             else {
                 processRequest( data, ws ).then( res => {
-                    ws.send( JSON.stringify( res ) );
-                    LogConnecction( address, 'out', res );
+                    if ( res != undefined ) {
+                        ws.send( JSON.stringify( res ) );
+                        LogConnecction( address, 'out', res );
+                    }
                 } );
             }
         }
@@ -125,10 +142,27 @@ function isSessionValid ( key?: string ): key is string {
     return !isNullOrEmpty( key ) && loginSessions.sessionExists( key );
 }
 
-async function processRequest (req: API.Request & { id?: number }, ws?: WebSocket): Promise<API.Response & { id?: number }> {
-    if ( req.type in ApiHandlers ) {
+
+async function processRequest (req: (API.Request & { id?: number }) | API.Message, ws?: WebSocket): Promise<(API.Response & { id?: number } | void)> {
+    if ( ws != undefined || 'sessionKey' in req ) {
+        var key = getSessionKey( ws, (req as any).sessionKey );
+        if ( isSessionValid( key ) ) {
+            loginSessions.getSession( key )!.lastActive = Date.now();
+            loginSessions.getSession( key )!.isActive.Value = true;
+        }
+    }
+
+    if ( req.type in MessageHandlers ) {
+        // @ts-ignore
+        var handler = MessageHandlers[req.type] as (req: API.Message, ws?: WebSocket) => Promise<void>;
+        await handler( req as API.Message, ws );
+    }
+    else if ( req.type in ApiHandlers ) {
+        // @ts-ignore
         var handler = ApiHandlers[req.type] as (req: API.Request, ws?: WebSocket) => Promise<API.Response>;
+        // @ts-ignore
         var val = await handler( req, ws ) as API.Response & { id?: number };
+        // @ts-ignore
         val.id = req.id;
 
         return val;
@@ -136,6 +170,7 @@ async function processRequest (req: API.Request & { id?: number }, ws?: WebSocke
     else {
         return {
             error: 'Invalid request type',
+            // @ts-ignore
             id: req.id
         };
     }
@@ -164,9 +199,7 @@ const ApiHandlers: {
                 };
             }
             else {
-                var key = loginSessions.createSession( {
-                    user: MakeAnonUser( req.nickname )
-                } );
+                var key = loginSessions.createSession( new UserSession( MakeAnonUser( req.nickname ) ) );
 
                 if ( ws != undefined )
                     wsSessions.set( ws, key );
@@ -187,9 +220,7 @@ const ApiHandlers: {
         }
         else {
             if ( await verifyUser( user, req.password ) ) {
-                var key = loginSessions.createSession( {
-                    user: user
-                } );
+                var key = loginSessions.createSession( new UserSession( user ) );
 
                 if ( ws != undefined )
                     wsSessions.set( ws, key );
@@ -266,13 +297,12 @@ const ApiHandlers: {
             
             if ( socket != undefined ) {
                 let ws = socket;
+                let reactives: { [uid: number]: Reactive<boolean> } = {};
+
                 function added ( s: UserSession ) {
-                    var data: API.HeartbeatUsers = {
-                        type: 'heartbeat-users',
-                        kind: 'added',
-                        user: { nickname: s.user.nickname, location: serverName, uid: s.user.UID }
-                    };
-                    ws.send( JSON.stringify( data ) );
+                    var reactive = new Reactive<boolean>( s.isActive );
+                    reactives[ s.user.UID ] = reactive;
+                    reactive.AddOnValueChanged( activityChanged( s ), true );
                 }
                 function removed ( s: UserSession ) {
                     if ( s.user == session.user ) {
@@ -287,6 +317,34 @@ const ApiHandlers: {
                         uid: s.user.UID
                     };
                     ws.send( JSON.stringify( data ) );
+                    delete reactives[ s.user.UID ];
+                }
+
+                function activityChanged ( s: UserSession ) {
+                    return (v: boolean) => {
+                        if ( v ) {
+                            var data: API.HeartbeatUsers = {
+                                type: 'heartbeat-users',
+                                kind: 'added',
+                                user: { nickname: s.user.nickname, location: serverName, uid: s.user.UID }
+                            };
+                            ws.send( JSON.stringify( data ) );
+                        }
+                        else {
+                            var data: API.HeartbeatUsers = {
+                                type: 'heartbeat-users',
+                                kind: 'removed',
+                                uid: s.user.UID
+                            };
+                            ws.send( JSON.stringify( data ) );
+                        }
+                    };
+                }
+
+                for ( const s of Object.values( loginSessions.getAll() ).filter( x => x.user != session.user ) ) {
+                    var reactive = new Reactive<boolean>( s.isActive );
+                    reactives[ s.user.UID ] = reactive;
+                    reactive.AddOnValueChanged( activityChanged( s ) );
                 }
 
                 loginSessions.entryAdded.addEventListener( added );
@@ -295,12 +353,18 @@ const ApiHandlers: {
 
             return {
                 result: 'ok',
-                users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user ).map( x => ({ nickname: x.user.nickname, location: serverName, uid: x.user.UID }) )   
+                users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user && x.isActive.Value )
+                    .map( x => ({ nickname: x.user.nickname, location: serverName, uid: x.user.UID }) )   
             }
-            // TODO heartbeat-users when this goes reactive
         }
         else return {
             result: 'session not found'
         }
     }
+};
+
+const MessageHandlers : {
+    [Key in API.Message['type']]: (req: Uncertain<Extract<API.Message, { type: Key }>>, ws?: WebSocket) => Promise<void>
+} = {
+    'alive': async (req, ws) => { }
 };

@@ -36,9 +36,13 @@ function connect () {
     } );
 
     socket.addEventListener( 'message', msg => {
-        var parsed = JSON.parse( msg.data ) as API.Response;
-
-        worker.postMessage( parsed );
+        try {
+            var parsed = JSON.parse( msg.data ) as API.Response;
+            worker.postMessage( parsed );
+        }
+        catch ( e ) {
+            worker.postMessage( { type: 'connection-error', message: e } );
+        }
     } );
 
     socket.addEventListener( 'error', err => {

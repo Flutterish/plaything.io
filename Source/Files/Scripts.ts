@@ -4,7 +4,7 @@ import type { Theme } from '@Server/Themes'
 import type { SocketHeartbeat } from '@WebWorkers/Socket';
 
 const Workers = {
-    get: <Treq, Tres, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
+    get: <Treq, Tres, Tmessage, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
         var worker = new Worker( name );
         var callbacks: { [id: number]: [(data: any) => any, (err: any) => any] } = {};
         var id = 0;
@@ -33,6 +33,9 @@ const Workers = {
                     worker.postMessage( data );
                 } );
             },
+            message: <Tmsg extends Tmessage>( data: Tmsg ) => {
+                worker.postMessage( data );
+            },
 
             mapRequests: <Tprop extends string, Treqq extends { [Key in Tprop]: string } & Treq, Tmap extends { [Key in Treqq[Tprop]]: Tres }>() => {
                 return {
@@ -43,6 +46,9 @@ const Workers = {
                             worker.postMessage( data );
                         } );
                     },
+                    message: <Tmsg extends Tmessage>( data: Tmsg ) => {
+                        worker.postMessage( data );
+                    }
                 };
             }
         };
@@ -86,7 +92,7 @@ type HeartbeatHandlers = {
     userList?: (e: API.HeartbeatUsers) => any
 };
 const heartbeatHandlers: HeartbeatHandlers = {};
-const sockets = Workers.get<API.Request, API.Response, SocketHeartbeat>( 'WebWorkers/Socket.js', heartbeat => {
+const sockets = Workers.get<API.Request, API.Response, API.Message, SocketHeartbeat>( 'WebWorkers/Socket.js', heartbeat => {
     if ( heartbeat.type == 'reconnected' ) {
         if ( sessionKey != undefined ) {
             sockets.request<API.RequestSessionReconnect>( { type: 'reconnect', sessionKey: sessionKey } ).then( res => {
@@ -126,6 +132,11 @@ window.addEventListener( 'load', async () => {
     else {
         goToLoginPage();
     }
+
+    setInterval( () => {
+        if ( sessionKey != undefined )
+            sockets.message<API.AliveAck>( { type: 'alive' } );
+    }, 10 * 1000 );
 } );
 
 function createTemplate ( data: string ): HTMLElement {
@@ -495,6 +506,9 @@ async function loadDevicesPage ( state: PageState ) {
         usercount++;
     }
     function removeUser ( uid: number ) {
+        if ( users[ uid ] == undefined )
+            return;
+
         var [b, text, br] = users[ uid ];
         b.remove();
         text.remove();
