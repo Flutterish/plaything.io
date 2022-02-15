@@ -17,6 +17,41 @@ function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
 }
 
 const files = express.static( './../Files', { index: 'main', extensions: ['html'] } );
+app.get( '/api/*', async (req, res) => {
+    var path = req.path.split( '/' );
+    var request: any;
+    if ( path.length == 3 ) {
+        request = {
+            ...req.query,
+            type: path[2]
+        };
+    }
+    else if ( path.length == 4 ) {
+        request = {
+            ...req.query,
+            sessionKey: path[2],
+            type: path[3]
+        };
+    }
+    else {
+        LogConnecction( req.ip, 'in', { path: req.path, query: req.query } );
+        var error: API.Error = {
+            error: 'incorrect API call'
+        };
+        res.setHeader( 'content-type', 'application/json' );
+        LogConnecction( req.ip, 'out', error );
+        res.send( JSON.stringify( error ) );
+        res.end();
+        return;
+    }
+
+    LogConnecction( req.ip, 'in', request );
+    res.setHeader( 'content-type', 'application/json' );
+    var data = await processRequest( request );
+    LogConnecction( req.ip, 'out', data );
+    res.send( JSON.stringify( data ) );
+    res.end();
+} );
 app.use( '/', files );
 app.get( '/*', (req, res) => {
     req.url = '/bootstrap';
@@ -53,7 +88,7 @@ wss.addListener( 'connection', (ws, req) => {
                 LogConnecction( address, 'out', r );
             }
             else {
-                ApiHandlers.processRequest( data, ws ).then( res => {
+                processRequest( data, ws ).then( res => {
                     ws.send( JSON.stringify( res ) );
                     LogConnecction( address, 'out', res );
                 } );
@@ -89,25 +124,25 @@ function isSessionValid ( key?: string ): key is string {
     return !isNullOrEmpty( key ) && loginSessions.sessionExists( key );
 }
 
+async function processRequest (req: API.Request & { id?: number }, ws?: WebSocket): Promise<API.Response & { id?: number }> {
+    if ( req.type in ApiHandlers ) {
+        var handler = ApiHandlers[req.type] as (req: API.Request, ws?: WebSocket) => Promise<API.Response>;
+        var val = await handler( req, ws ) as API.Response & { id?: number };
+        val.id = req.id;
+
+        return val;
+    }
+    else {
+        return {
+            error: 'Invalid request type',
+            id: req.id
+        };
+    }
+}
+
 const ApiHandlers: {
     [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>, ws?: WebSocket) => Promise<RequestResponseMap[Key]>
-} & { processRequest: (req: API.Request & { id?: number }, ws?: WebSocket) => Promise<API.Response & { id?: number }> } = {
-    processRequest: async (req: API.Request & { id?: number }, ws?: WebSocket): Promise<API.Response & { id?: number }> => {
-        if ( req.type in ApiHandlers ) {
-            var handler = ApiHandlers[req.type] as (req: API.Request, ws?: WebSocket) => Promise<API.Response>;
-            var val = await handler( req, ws ) as API.Response & { id?: number };
-            val.id = req.id;
-
-            return val;
-        }
-        else {
-            return {
-                error: 'Invalid request type',
-                id: req.id
-            };
-        }
-    },
-
+} = {
     'loginInformation': async req => {
         return { anonymousAllowed: AllowAnonymousAccess };
     },

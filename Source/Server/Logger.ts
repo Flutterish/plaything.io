@@ -23,7 +23,8 @@ function process ( obj: any ): typeof obj {
         else {
             let out: typeof obj = {};
             for ( const key in obj ) {
-                out[key] = shouldCensor( key ) ? generateCensor( key ) : process( obj[key] );
+                if ( obj[key] != undefined )
+                    out[key] = shouldCensor( key ) ? generateCensor( key ) : process( obj[key] );
             }
 
             return out;
