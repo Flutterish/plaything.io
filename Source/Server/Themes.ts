@@ -1,3 +1,4 @@
+// TODO save each theme to its own file, use indexedDB to save client-side
 export type Theme = {
     name: string,
     id: string,

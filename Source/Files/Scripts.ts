@@ -261,9 +261,9 @@ function closeOptionsOverlay () {
 
 var currentTheme = 'dracula';
 var availableThemes: Theme[] = [
-    { name: 'Dracula', id: 'dracula', description: '' },
-    { name: 'Cherry', id: 'cherry', description: '' },
-    { name: 'Light', id: 'light', description: '' },
+    { name: 'Dracula', id: 'dracula', description: 'The default dark theme' },
+    { name: 'Cherry', id: 'cherry', description: 'A colorful light theme' },
+    { name: 'Light', id: 'light', description: 'The default light theme' },
 ];
 function setTheme ( theme: string ) {
     document.body.setAttribute( 'theme', currentTheme = theme );
