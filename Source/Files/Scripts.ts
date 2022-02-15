@@ -89,7 +89,7 @@ const heartbeatHandlers: HeartbeatHandlers = {};
 const sockets = Workers.get<API.Request, API.Response, SocketHeartbeat>( 'WebWorkers/Socket.js', heartbeat => {
     if ( heartbeat.type == 'reconnected' ) {
         if ( sessionKey != undefined ) {
-            sockets.request<API.RequestSessionExists>( { type: 'sessionExists', sessionKey: sessionKey } ).then( res => {
+            sockets.request<API.RequestSessionReconnect>( { type: 'reconnect', sessionKey: sessionKey } ).then( res => {
                 if ( !res.value ) {
                     cleanSessionInfo();
                     goToLoginPage( 'Session invalidated' );
@@ -118,7 +118,7 @@ window.addEventListener( 'load', async () => {
     setAccent( localStorage.getItem( 'accent' ) ?? accent );
 
     var key = localStorage.getItem( 'session_key' );
-    if ( key != null && (await sockets.request<API.RequestSessionExists>( { type: 'sessionExists', sessionKey: key } )).value ) {
+    if ( key != null && (await sockets.request<API.RequestSessionReconnect>( { type: 'reconnect', sessionKey: key } )).value ) {
         userNickname = localStorage.getItem( 'nickname' );
         sessionKey = key;
         goToDevicesPage();
@@ -176,7 +176,7 @@ var userNickname: string | undefined | null;
 var sessionKey: SessionKey | undefined | null;
 function logOut () {
     if ( sessionKey != undefined ) {
-        sockets.request<API.RequestLogout>( { type: 'logout', sessionKey: sessionKey } );
+        sockets.request<API.RequestLogout>( { type: 'logout' } );
         cleanSessionInfo();
         goToLoginPage();
     }
@@ -461,7 +461,7 @@ async function loadDevicesPage ( state: PageState ) {
     var listing = devicesPage.querySelector( '.listing' ) as HTMLElement;
     var usersList = devicesPage.querySelector( '#users' ) as HTMLElement;
 
-    sockets.request<API.SubscribeDevices>( { type: 'subscibeDevices', sessionKey: sessionKey! } ).then( res => {
+    sockets.request<API.SubscribeDevices>( { type: 'subscibeDevices' } ).then( res => {
         if ( res.result == 'ok' ) {
             for ( const device of res.devices ) {
                 var div = document.createElement( 'div' );
@@ -523,7 +523,7 @@ async function loadDevicesPage ( state: PageState ) {
             removeUser( e.user );
         }
     };
-    sockets.request<API.SubscribeUsers>( { type: 'subscibeUsers', sessionKey: sessionKey! } ).then( res => {
+    sockets.request<API.SubscribeUsers>( { type: 'subscibeUsers' } ).then( res => {
         if ( res.result == 'ok' ) {
             for ( const user of res.users ) {
                 addUser( user.nickname, user.location );

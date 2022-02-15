@@ -13,7 +13,7 @@ export type RequestResponseMap = {
         : Req extends API.RequestLogin['type'] ? API.ResponseLogin
         : Req extends API.RequestServerInfo['type'] ? API.ResponseServerInfo
         : Req extends API.RequestLogout['type'] ? API.ResponseLogout
-        : Req extends API.RequestSessionExists['type'] ? API.ResponseSesssionExists
+        : Req extends API.RequestSessionReconnect['type'] ? API.ResponseSesssionExists
         : Req extends API.SubscribeDevices['type'] ? API.ResponseSubscribeDevices
         : Req extends API.SubscribeUsers['type'] ? API.ResponseSubscribeUsers
         : API.Ack
@@ -33,21 +33,21 @@ export namespace API {
     }>
     export type RequestLogout = ID<{
         type: 'logout',
-        sessionKey: SessionKey
+        sessionKey?: SessionKey
     }>
-    export type RequestSessionExists = ID<{
-        type: 'sessionExists',
+    export type RequestSessionReconnect = ID<{
+        type: 'reconnect',
         sessionKey: SessionKey
     }>
     export type SubscribeDevices = ID<{
         type: 'subscibeDevices',
-        sessionKey: SessionKey
+        sessionKey?: SessionKey
     }>
     export type SubscribeUsers = ID<{
         type: 'subscibeUsers',
-        sessionKey: SessionKey
+        sessionKey?: SessionKey
     }>
-    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionExists | SubscribeDevices | SubscribeUsers;
+    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionReconnect | SubscribeDevices | SubscribeUsers;
     export type Request = Extract<RequestTypes, ID<{type: string}>>
 
     export type ResponseLoginInfo = ID<{

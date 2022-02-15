@@ -5,11 +5,16 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { API, RequestResponseMap, Uncertain, DistributiveOmit } from './Api';
 import { LogConnecction } from './Logger.js';
 import { UserSession } from './User.js';
+import { SessionKey } from './Session';
 
 const app = express();
 const port = 8080;
 const serverName = 'sample-server';
 const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
+const wsSessions = new Map<WebSocket, SessionKey>();
+function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
+    return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
+}
 
 const files = express.static( './../Files', { index: 'main', extensions: ['html'] } );
 app.use( '/', files );
@@ -28,6 +33,7 @@ wss.addListener( 'connection', (ws, req) => {
 
     ws.addEventListener( 'close', e => {
         LogConnecction( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
+        wsSessions.delete( ws );
     } );
     ws.addEventListener( 'error', err => {
         LogConnecction( address, 'in', `Error on connection:`, err.message );
@@ -106,7 +112,7 @@ const ApiHandlers: {
         return { anonymousAllowed: AllowAnonymousAccess };
     },
 
-    'login': async req => {
+    'login': async (req, ws) => {
         if ( isNullOrEmpty( req.nickname ) ) {
             return { 
                 result: 'invalid',
@@ -125,6 +131,9 @@ const ApiHandlers: {
                 var key = loginSessions.createSession( {
                     user: { nickname: req.nickname, allowedDevices: AnonymousPermitedDevices }
                 } );
+
+                if ( ws != undefined )
+                    wsSessions.set( ws, key );
 
                 return {
                     result: 'ok',
@@ -145,6 +154,10 @@ const ApiHandlers: {
                 var key = loginSessions.createSession( {
                     user: user
                 } );
+
+                if ( ws != undefined )
+                    wsSessions.set( ws, key );
+
                 return {
                     result: 'ok',
                     sessionKey: key
@@ -165,9 +178,15 @@ const ApiHandlers: {
         };
     },
 
-    'logout': async req => {
-        if ( isSessionValid( req.sessionKey ) ) {
-            loginSessions.destroySession( req.sessionKey );
+    'logout': async (req, ws) => {
+        var key = getSessionKey( ws, req.sessionKey );
+
+        if ( isSessionValid( key ) ) {
+            loginSessions.destroySession( key );
+            
+            if ( ws != undefined )
+                wsSessions.delete( ws );
+
             return {
                 result: 'ok'
             }
@@ -177,15 +196,21 @@ const ApiHandlers: {
         }
     },
 
-    'sessionExists': async req => {
+    'reconnect': async (req, ws) => {
+        var isValid = isSessionValid( req.sessionKey );
+        if ( ws != undefined && isValid )
+            wsSessions.set( ws, req.sessionKey! );
+
         return {
-            value: isSessionValid( req.sessionKey )
+            value: isValid
         }
     },
 
-    'subscibeDevices': async req => {
-        if ( isSessionValid( req.sessionKey ) ) {
-            var session = loginSessions.getSession( req.sessionKey )!;
+    'subscibeDevices': async (req, ws) => {
+        var key = getSessionKey( ws, req.sessionKey );
+
+        if ( isSessionValid( key ) ) {
+            var session = loginSessions.getSession( key )!;
             return {
                 result: 'ok',
                 devices: session.user.allowedDevices.map( x => x.name )
@@ -198,8 +223,10 @@ const ApiHandlers: {
     },
 
     'subscibeUsers': async (req, socket) => {
-        if ( isSessionValid( req.sessionKey ) ) {
-            var session = loginSessions.getSession( req.sessionKey )!;
+        var key = getSessionKey( socket, req.sessionKey );
+
+        if ( isSessionValid( key ) ) {
+            var session = loginSessions.getSession( key )!;
             
             if ( socket != undefined ) {
                 let ws = socket;
