@@ -1,15 +1,13 @@
-function generateCensor () {
-    var charset = '#$!@%^&*';
-    let key = '';
-    for ( let i = 0; i < 16; i++ ) {
-        key += charset[ Math.floor( Math.random() * charset.length ) ];
-    }
-
-    return key;
+function generateCensor ( key: string ) {
+    return '[LOGGING FORBIDDEN]';
 }
 
+const bannedKeys = [
+    'password',
+    'sessionkey'
+];
 function shouldCensor ( key: string ) {
-    return key.toLowerCase() == 'password';
+    return bannedKeys.includes( key.toLowerCase() );
 }
 
 function process ( obj: any ): typeof obj {
@@ -25,7 +23,7 @@ function process ( obj: any ): typeof obj {
         else {
             let out: typeof obj = {};
             for ( const key in obj ) {
-                out[key] = shouldCensor( key ) ? generateCensor() : process( obj[key] );
+                out[key] = shouldCensor( key ) ? generateCensor( key ) : process( obj[key] );
             }
 
             return out;
