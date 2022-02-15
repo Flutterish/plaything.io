@@ -1,10 +1,10 @@
-import type { API, DistributiveOmit, RequestResponseMap } from '@Server/Api'
+import { API, ID, RequestResponseMap } from '@Server/Api'
 import { SessionKey } from '@Server/Session';
 import type { Theme } from '@Server/Themes'
 import type { SocketHeartbeat } from '@WebWorkers/Socket';
 
 const Workers = {
-    get: <Treq extends { id: number } = { id: number }, Tres extends { id: number } = { id: number }, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
+    get: <Treq, Tres, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any ) => {
         var worker = new Worker( name );
         var callbacks: { [id: number]: [(data: any) => any, (err: any) => any] } = {};
         var id = 0;
@@ -26,9 +26,9 @@ const Workers = {
         };
 
         return {
-            request: <Trequest extends Treq = Treq, Tresponse extends Tres = Tres>( data: Omit<Trequest, 'id'> ): Promise<Omit<Tresponse, 'id'>> => {
+            request: <Trequest extends Treq = Treq, Tresponse extends Tres = Tres>( data: Trequest ): Promise<Tresponse> => {
                 return new Promise( (res, rej) => {
-                    (data as Trequest).id = id;
+                    (data as ID<Trequest>).id = id;
                     callbacks[id++] = [res, rej];
                     worker.postMessage( data );
                 } );
@@ -36,9 +36,9 @@ const Workers = {
 
             mapRequests: <Tprop extends string, Treqq extends { [Key in Tprop]: string } & Treq, Tmap extends { [Key in Treqq[Tprop]]: Tres }>() => {
                 return {
-                    request: <Trequest extends Treqq>( data: Omit<Trequest, 'id'> ): Promise<DistributiveOmit<Tmap[Trequest[Tprop]], 'id'>> => {
+                    request: <Trequest extends Treqq>( data: Trequest ): Promise<Tmap[Trequest[Tprop]]> => {
                         return new Promise( (res, rej) => {
-                            (data as Trequest).id = id;
+                            (data as ID<Trequest>).id = id;
                             callbacks[id++] = [res, rej];
                             worker.postMessage( data );
                         } );
@@ -146,8 +146,8 @@ function waitFor ( el: HTMLElement, event: keyof HTMLElementEventMap ): Promise<
 }
 
 type RequestCache = {
-    loginInformation: DistributiveOmit<API.ResponseLoginInfo, 'id'>,
-    serverInformation: DistributiveOmit<API.ResponseServerInfo, 'id'>
+    loginInformation: API.ResponseLoginInfo,
+    serverInformation: API.ResponseServerInfo
 };
 const cache: Partial<RequestCache> = {};
 async function cachedGet<T extends keyof RequestCache> ( type: T ): Promise<RequestCache[T]> {

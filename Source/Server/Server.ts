@@ -90,12 +90,12 @@ function isSessionValid ( key?: string ): key is string {
 }
 
 const ApiHandlers: {
-    [Key in API.Request['type']]: (req: Uncertain<DistributiveOmit<Extract<API.Request, { type: Key }>, 'id'>>, ws?: WebSocket) => Promise<DistributiveOmit<RequestResponseMap[Key], 'id'>>
-} & { processRequest: (req: API.Request, ws?: WebSocket) => Promise<API.Response> } = {
-    processRequest: async (req: API.Request, ws?: WebSocket): Promise<API.Response> => {
+    [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>, ws?: WebSocket) => Promise<RequestResponseMap[Key]>
+} & { processRequest: (req: API.Request & { id?: number }, ws?: WebSocket) => Promise<API.Response & { id?: number }> } = {
+    processRequest: async (req: API.Request & { id?: number }, ws?: WebSocket): Promise<API.Response & { id?: number }> => {
         if ( req.type in ApiHandlers ) {
-            var handler = ApiHandlers[req.type] as (req: API.Request, ws?: WebSocket) => Promise<DistributiveOmit<API.Response, 'id'>>;
-            var val = await handler( req, ws ) as API.Response;
+            var handler = ApiHandlers[req.type] as (req: API.Request, ws?: WebSocket) => Promise<API.Response>;
+            var val = await handler( req, ws ) as API.Response & { id?: number };
             val.id = req.id;
 
             return val;

@@ -1,7 +1,7 @@
 import type { SessionKey } from "./Session";
 
 export type Uncertain<T> = { [K in keyof Omit<T, 'type'>]: K extends 'id' ? T[K] : T[K] | undefined };
-type ID<T> = T & { id: number };
+export type ID<T> = T & { id: number };
 
 export type DistributiveOmit<T, K extends keyof any> = T extends any
     ? Omit<T, K>
@@ -20,73 +20,73 @@ export type RequestResponseMap = {
 };
 
 export namespace API {
-    export type RequestLoginInfo = ID<{
+    export type RequestLoginInfo = {
         type: 'loginInformation'
-    }>
-    export type RequestServerInfo = ID<{
+    }
+    export type RequestServerInfo = {
         type: 'serverInformation'
-    }>
-    export type RequestLogin = ID<{
+    }
+    export type RequestLogin = {
         type: 'login',
         nickname: string,
         password?: string
-    }>
-    export type RequestLogout = ID<{
+    }
+    export type RequestLogout = {
         type: 'logout',
         sessionKey?: SessionKey
-    }>
-    export type RequestSessionReconnect = ID<{
+    }
+    export type RequestSessionReconnect = {
         type: 'reconnect',
         sessionKey: SessionKey
-    }>
-    export type SubscribeDevices = ID<{
+    }
+    export type SubscribeDevices = {
         type: 'subscibeDevices',
         sessionKey?: SessionKey
-    }>
-    export type SubscribeUsers = ID<{
+    }
+    export type SubscribeUsers = {
         type: 'subscibeUsers',
         sessionKey?: SessionKey
-    }>
+    }
     type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo | RequestLogout | RequestSessionReconnect | SubscribeDevices | SubscribeUsers;
-    export type Request = Extract<RequestTypes, ID<{type: string}>>
+    export type Request = Extract<RequestTypes, {type: string}>
 
-    export type ResponseLoginInfo = ID<{
+    export type ResponseLoginInfo = {
         anonymousAllowed: boolean
-    }>
-    export type ResponseServerInfo = ID<{
+    }
+    export type ResponseServerInfo = {
         name: string
-    }>
-    export type ResponseLogin = ID<{
+    }
+    export type ResponseLogin = {
         result: 'ok',
         sessionKey: SessionKey
     } | {
         result: 'invalid',
         reason: 'nickname and password required' | 'nickname required' | 'password required' | 'invalid credentials'
-    }>
-    export type ResponseLogout = ID<{
+    }
+    export type ResponseLogout = {
         result: 'ok' | 'session not found'
-    }>
-    export type ResponseSesssionExists = ID<{
+    }
+    export type ResponseSesssionExists = {
         value: boolean
-    }>
-    export type ResponseSubscribeDevices = ID<{
+    }
+    export type ResponseSubscribeDevices = {
         result: 'ok',
         devices: string[]
     } | {
         result: 'session not found'
-    }>
-    export type ResponseSubscribeUsers = ID<{
+    }
+    export type ResponseSubscribeUsers = {
         result: 'ok',
         users: { nickname: string, location: string, uid: number }[]
     } | {
         result: 'session not found'
-    }>
-    export type Ack = ID<{ result: boolean }>
-    export type Error = ID<{
+    }
+    export type Ack = { result: boolean }
+    export type Error = {
         error: string
-    }>
+    }
     type ResponseTypes = RequestResponseMap[keyof RequestResponseMap] | Error
-    export type Response = Extract<ResponseTypes, ID<{}>>
+    export type Response = ResponseTypes
 
     export type HeartbeatDevices = {
         type: 'heartbeat-devices',
