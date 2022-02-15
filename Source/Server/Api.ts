@@ -11,6 +11,7 @@ export type RequestResponseMap = {
     [Req in API.Request['type']]: 
         Req extends API.RequestLoginInfo['type'] ? API.ResponseLoginInfo
         : Req extends API.RequestLogin['type'] ? API.ResponseLogin
+        : Req extends API.RequestServerInfo['type'] ? API.ResponseServerInfo
         : never
 };
 
@@ -18,16 +19,22 @@ export namespace API {
     export type RequestLoginInfo = ID<{
         type: 'loginInformation'
     }>
+    export type RequestServerInfo = ID<{
+        type: 'serverInformation'
+    }>
     export type RequestLogin = ID<{
         type: 'login',
         nickname: string,
         password?: string
     }>
-    type RequestTypes = RequestLoginInfo | RequestLogin;
+    type RequestTypes = RequestLoginInfo | RequestLogin | RequestServerInfo;
     export type Request = Extract<RequestTypes, ID<{type: string}>>
 
     export type ResponseLoginInfo = ID<{
         anonymousAllowed: boolean
+    }>
+    export type ResponseServerInfo = ID<{
+        name: string
     }>
     export type ResponseLogin = ID<{
         result: 'ok',

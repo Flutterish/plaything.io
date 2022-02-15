@@ -8,6 +8,7 @@ import { UserSession } from './User.js';
 
 const app = express();
 const port = 8080;
+const serverName = 'sample-server';
 const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
 
 const files = express.static( './../Files', { index: 'main', extensions: ['html'] } );
@@ -152,5 +153,11 @@ const ApiHandlers: {
                 };
             }
         }
+    },
+
+    'serverInformation': async req => {
+        return {
+            name: serverName
+        };
     }
 };

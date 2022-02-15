@@ -103,6 +103,16 @@ function createTemplate ( data: string ): HTMLElement {
     return root;
 }
 
+function waitFor ( el: HTMLElement, event: keyof HTMLElementEventMap ): Promise<void> {
+    return new Promise( res => {
+        function fun () {
+            el.removeEventListener( event, fun );
+            res();
+        }
+        el.addEventListener( event, fun );
+    } );
+}
+
 var loginPage: ChildNode | undefined = undefined;
 var wrapper: ChildNode | undefined = undefined;
 var optionsOverlay: HTMLElement | undefined = undefined;
@@ -122,10 +132,15 @@ async function loadLoginPage ( state: PageState ) {
     var pass = template.querySelector( '#pass' ) as HTMLInputElement;
     var nick = template.querySelector( '#nickname' ) as HTMLInputElement;
     var submit = template.querySelector( '#login' ) as HTMLButtonElement;
+    var serverName = template.querySelector( '.top-label' ) as HTMLElement;
     var messages = template.querySelector( '#info' )!;
 
     loginPage = template.childNodes[0];
     document.body.appendChild( loginPage );
+
+    sockets.request<API.RequestServerInfo>( { type: 'serverInformation' } ).then( res => {
+        serverName.innerText = res.name;
+    } );
 
     var info = await sockets.request<API.RequestLoginInfo>( { type: 'loginInformation' } );
     if ( info.anonymousAllowed ) {
@@ -223,7 +238,7 @@ async function openOptionsOverlay () {
 
     if ( !isOverlayOpen ) {
         isOverlayOpen = true;
-        setTimeout( () => optionsOverlay?.classList.add( 'open' ), 1 );
+        setTimeout( () => optionsOverlay?.classList.add( 'open' ), 10 );
     }
 }
 
@@ -231,5 +246,5 @@ function closeOptionsOverlay () {
     if ( !isOverlayOpen ) return;
 
     isOverlayOpen = false;
-    setTimeout( () => optionsOverlay?.classList.remove( 'open' ), 1 );
+    setTimeout( () => optionsOverlay?.classList.remove( 'open' ), 10 );
 }
