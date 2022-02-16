@@ -16,7 +16,8 @@ export namespace Control {
         type: 'slider',
         orientation: 'vertical',
         range: [from: number, to: number],
-        value: number
+        value: number,
+        notches: number
     }
 
     export type Any = Button | Slider

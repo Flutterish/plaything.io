@@ -548,25 +548,23 @@ select {
     margin-right: 4px;
 }
 
-.control-list {
-    display: flex;
-    flex-flow: row wrap;
-    gap: 3%;
-    align-items: center;
-    justify-content: center;
+#control-list, #cursors {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    position: relative;
 }
 
-.control-list > * {
-    position: relative;
+#cursors {
+    pointer-events: none;
+}
+
+#control-list > * {
     box-sizing: border-box;
 }
 
 .control-button {
-    height: 40%;
-    aspect-ratio: 1;
     background-color: var(--control-button-background);
     border-radius: 5%;
     padding: 2%;
@@ -589,18 +587,13 @@ select {
     text-align: center;
     position: absolute;
     left: 0;
-    font-size: 4vh;
+    font-size: 200%;
     top: -1.5em;
 }
 
 .control-button > div > i {
     color: var(--accent);
     vertical-align: top;
-}
-
-.control-slider {
-    height: 90%;
-    aspect-ratio: 2 / 5;
 }
 
 .bar {
@@ -725,5 +718,8 @@ select {
 .share {
     width: 100%;
     height: 100%;
-    /* background-color: red; */
+}
+
+.content:has(.share) {
+    padding: 0;
 }

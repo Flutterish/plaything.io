@@ -98,7 +98,7 @@ export function computeSharedControlLayout ( availableSize: Size, controls: Cont
     }
 
     var result: ({ control: Control.Any } & Size & Position)[] = [];
-    var layout = computeSharedLayout( availableSize, { width: 100 * 4 / 3, height: 100 }, items, 5 );
+    var layout = computeSharedLayout( availableSize, { width: 100 * 4 / 3, height: 100 }, items, 10 );
     var screenFit = fitAspectRatio( { width: 100 * 4 / 3, height: 100 }, availableSize );
 
     for ( const item of layout.unscaledLayout ) {

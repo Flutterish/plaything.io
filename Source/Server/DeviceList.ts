@@ -21,7 +21,8 @@ export const DeviceList: { [name: string]: Device } = {
                 orientation: 'vertical',
                 label: 'Power',
                 value: 0,
-                range: [0, 100]
+                range: [0, 100],
+                notches: 5
             }
         ]
     },
@@ -39,7 +40,8 @@ export const DeviceList: { [name: string]: Device } = {
                 orientation: 'vertical',
                 label: 'Power',
                 value: 0,
-                range: [0, 100]
+                range: [0, 100],
+                notches: 11
             }
         ]
     }

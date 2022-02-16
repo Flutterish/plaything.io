@@ -14,10 +14,8 @@ Reconnected.push( () => {
     }
 } );
 
-window.addEventListener( 'load', flexFont );
-window.addEventListener( 'resize', flexFont );
-function flexFont () {
-    for ( const div of document.getElementsByClassName( 'font-icon' ) ) {
+function flexFont ( parent: HTMLElement ) {
+    for ( const div of parent.querySelectorAll( '.font-icon' ) ) {
         var style = window.getComputedStyle( div );
         var height = Number.parseFloat( style.height );
         var pt = Number.parseFloat( style.paddingTop );
@@ -454,7 +452,7 @@ async function loadControlPage ( state: PageState ) {
     controlPage = template.childNodes[0] as HTMLElement;
 
     var share = template.querySelector( '.share' ) as HTMLElement;
-    var controls = template.querySelector( '.control-list' ) as HTMLElement;
+    var controlList = template.querySelector( '#control-list' ) as HTMLElement;
 
     var xOffset = 0;
     var yOffset = 0;
@@ -466,6 +464,7 @@ async function loadControlPage ( state: PageState ) {
     function windowResized () {
         repositionControls?.();
         repositionCursors?.();
+        flexFont( share );
     }
 
     window.addEventListener( 'resize', windowResized );
@@ -477,22 +476,80 @@ async function loadControlPage ( state: PageState ) {
             return;
         }
 
+        function createButton ( control: Control.Button ) {
+            var button = document.createElement( 'div' );
+            button.classList.add( 'control-button' );
+            if ( control.label != undefined ) {
+                var label = document.createElement( 'div' );
+                label.classList.add( 'control-label' );
+                label.innerText = control.label;
+                button.appendChild( label );
+            }
+            var inner = document.createElement( 'div' );
+            inner.classList.add( 'button-inner' );
+            inner.classList.add( 'button' );
+            inner.classList.add( 'font-icon' );
+            button.appendChild( inner );
+            var icon = document.createElement( 'i' );
+            icon.classList.add( 'fa-solid' );
+            icon.classList.add( 'fa-power-off' );
+            inner.appendChild( icon );
+
+            return button;
+        }
+
+        function createSlider ( control: Control.Slider ) {
+            var slider = document.createElement( 'div' );
+            slider.classList.add( 'control-slider' );
+            if ( control.label != undefined ) {
+                var label = document.createElement( 'div' );
+                label.classList.add( 'control-label' );
+                label.innerText = control.label;
+                slider.appendChild( label );
+            }
+            var bar = document.createElement( 'div' );
+            bar.classList.add( 'bar' );
+            slider.appendChild( bar );
+            var fill = document.createElement( 'div' );
+            fill.classList.add( 'bar-fill' );
+            slider.appendChild( fill );
+            var notches = document.createElement('div' );
+            notches.classList.add( 'notches' );
+            for ( let i = control.notches - 1; i >= 0; i-- ) {
+                var notch = document.createElement( 'div' );
+                var notchLabel = document.createElement( 'div' );
+                notchLabel.innerText = (control.range[0] + ( control.range[1] - control.range[0] ) * ( i / (control.notches - 1) )).toFixed( 0 );
+                notch.appendChild( notchLabel );
+                var notchVisual = document.createElement( 'div' );
+                notchVisual.classList.add( 'notch' );
+                notch.appendChild( notchVisual );
+                notches.appendChild( notch );
+            }
+            slider.appendChild( notches );
+            var handle = document.createElement( 'div' );
+            handle.classList.add( 'handle' );
+            slider.appendChild( handle );
+
+            return slider;
+        }
+
         const controls = res.controls;
         const boundsByControl = new Map<Control.Any, HTMLElement>();
         for ( const control of controls ) {
-            let itemBounds = document.createElement( 'div' );
+            let itemBounds = control.type == 'button'
+                ? createButton( control )
+                : createSlider( control );
+                
             boundsByControl.set( control, itemBounds );
-            share.appendChild( itemBounds );
+            controlList.appendChild( itemBounds );
         }
 
-        var bounds = document.createElement( 'div' );
+        var bounds = share;
         bounds.style.position = 'absolute';
-        bounds.style.backgroundColor = 'green';
-        bounds.style.opacity = '10%';
-        share.appendChild( bounds );
+        // bounds.style.backgroundColor = 'red';
 
         function updateLayout () {
-            var width = share.clientWidth - 32;
+            var width = window.innerWidth - 32;
             var height = window.innerHeight - 50 - 32;
             
             var layout = computeSharedControlLayout( {
@@ -513,15 +570,17 @@ async function loadControlPage ( state: PageState ) {
             for ( const control of layout.items ) {
                 let itemBounds = boundsByControl.get( control.control )!;
                 itemBounds.style.position = 'absolute';
-                itemBounds.style.backgroundColor = 'red';
                 itemBounds.style.width = control.width + 'px';
                 itemBounds.style.height = control.height + 'px';
-                itemBounds.style.left = 16 + control.x + 'px';
-                itemBounds.style.top = 16 + control.y + 'px';
+                itemBounds.style.left = 16 + control.x - xOffset + 'px';
+                itemBounds.style.top = 16 + control.y - yOffset + 'px';
             }
+
+            share.style.fontSize = (layout.width / 800) + 'rem';
         }
 
         updateLayout();
+        flexFont( share );
         repositionControls = updateLayout;
     } );
 
