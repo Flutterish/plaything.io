@@ -2,6 +2,7 @@ import type { Device } from "./Device";
 
 export const DeviceList: { [name: string]: Device } = {
     sample1: {
+        ID: 0,
         name: 'Device A',
         controls: [
             {
@@ -12,6 +13,7 @@ export const DeviceList: { [name: string]: Device } = {
         ]
     },
     sample2: {
+        ID: 1,
         name: 'Device B',
         controls: [
             {
@@ -24,6 +26,7 @@ export const DeviceList: { [name: string]: Device } = {
         ]
     },
     sample3: {
+        ID: 2,
         name: 'Device C',
         controls: [
             {

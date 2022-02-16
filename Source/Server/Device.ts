@@ -1,4 +1,5 @@
 export type Device = {
+    ID: number,
     name: string,
     controls: Control.Any[]
 };

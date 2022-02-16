@@ -7,7 +7,9 @@ LoggedOut.push( goToLoginPage );
 Connected.push( goToLoginPage );
 Reconnected.push( () => {
     loadCouldPreferences();
-    goToDevicesPage();
+    if ( loginPage != undefined ) {
+        goToDevicesPage();
+    }
 } );
 
 window.addEventListener( 'load', flexFont );

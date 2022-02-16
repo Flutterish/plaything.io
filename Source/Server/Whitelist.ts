@@ -36,6 +36,7 @@ export const AnonymousPermitedDevices: Device[] = [
 export function MakeAnonUser ( nickname: string ): User {
     return {
         nickname: nickname,
+        isAnon: true,
         allowedDevices: AnonymousPermitedDevices,
         accent: new Reactive<string>( '#ff79c6' ),
         lastActive: 0,

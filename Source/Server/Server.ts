@@ -22,13 +22,13 @@ activeUsers.entryAdded.addEventListener( user => {
     user.lastActive = Date.now();
     user.isActive.Value = true;
 
-    LogWithSource( `User ${user.UID}`, `User ${user.nickname} is active` );
+    LogWithSource( `${user.isAnon ? 'Anonymous user' : 'User'} ${user.UID}`, `${user.isAnon ? 'Anonymous user' : 'User'} ${user.nickname} is active` );
 } );
 activeUsers.entryRemoved.addEventListener( user => {
     user.lastActive = Date.now();
     user.isActive.Value = false;
 
-    LogWithSource( `User ${user.UID}`, `User ${user.nickname} is no longer active` );
+    LogWithSource( `${user.isAnon ? 'Anonymous user' : 'User'} ${user.UID}`, `${user.isAnon ? 'Anonymous user' : 'User'} ${user.nickname} is no longer active` );
 } );
 
 // TODO we will need to abstract this away

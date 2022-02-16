@@ -6,6 +6,7 @@ import { SubscribeablePool } from './Subscription';
 export type User = {
     nickname: string,
     UID: number,
+    isAnon?: true,
     passwordHash?: string,
     allowedDevices: Device[],
     accent: Reactive<string>,
