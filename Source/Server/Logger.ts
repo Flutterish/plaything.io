@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { User } from './User';
 
 function generateCensor ( key: string ) {
     return '[LOGGING FORBIDDEN]';
@@ -45,6 +46,10 @@ export function Log ( ...args: any[] ) {
     console.log( `[${new Date().toLocaleString()}]:`, ...args );
 
     saveLog( 'system', args.map( x => typeof x === 'object' ? JSON.stringify( x ) : x ).join( ' ' ) );
+}
+
+export function LogUser ( user: User, ...args: any[] ) {
+    LogWithSource( `${user.isAnon ? 'Anonymous user' : 'User'} [${user.UID}]`, `<${user.isAnon ? 'Anonymous user' : 'User'} ${user.nickname}>`, ...args );
 }
 
 export function LogWithSource ( source: string, ...args: any[] ) {

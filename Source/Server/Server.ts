@@ -3,7 +3,7 @@ import { AllowAnonymousAccess, getUser, MakeAnonUser, verifyUser } from './White
 import CreateSessionPool from './Session.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { API, RequestResponseMap, Uncertain } from './Api';
-import { FreeLogFile, Log, LogConnection, LogWithSource } from './Logger.js';
+import { FreeLogFile, Log, LogConnection, LogUser, LogWithSource } from './Logger.js';
 import { User, CreateUserPool, UserSession, CreateActiveUserPool } from './User.js';
 import { SessionKey } from './Session';
 import { PoolSubscription, CreatePoolSubscription } from './Subscription.js';
@@ -22,13 +22,13 @@ activeUsers.entryAdded.addEventListener( user => {
     user.lastActive = Date.now();
     user.isActive.Value = true;
 
-    LogWithSource( `${user.isAnon ? 'Anonymous user' : 'User'} ${user.UID}`, `${user.isAnon ? 'Anonymous user' : 'User'} ${user.nickname} is active` );
+    LogUser( user, `is active` );
 } );
 activeUsers.entryRemoved.addEventListener( user => {
     user.lastActive = Date.now();
     user.isActive.Value = false;
 
-    LogWithSource( `${user.isAnon ? 'Anonymous user' : 'User'} ${user.UID}`, `${user.isAnon ? 'Anonymous user' : 'User'} ${user.nickname} is no longer active` );
+    LogUser( user, `is no longer active` );
 } );
 
 // TODO we will need to abstract this away
