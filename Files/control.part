@@ -1,0 +1,37 @@
+<div class="content">
+    <div class="share">
+        <div class="control-list">
+            <div class="control-button">
+                <div class="control-label">On/Off</div>
+                <div class="button-inner button font-icon">
+                    <i class="fa-solid fa-power-off"></i>
+                </div>
+            </div>
+            <div class="control-slider">
+                <div class="control-label">Power</div>
+                <div class="bar"></div>
+                <div class="bar-fill"></div>
+                <div class="notches">
+                    <div><div class="notch-label">100</div><div class="notch"></div></div>
+                    <div><div class="notch-label">90</div><div class="notch"></div></div>
+                    <div><div class="notch-label">80</div><div class="notch"></div></div>
+                    <div><div class="notch-label">70</div><div class="notch"></div></div>
+                    <div><div class="notch-label">60</div><div class="notch"></div></div>
+                    <div><div class="notch-label">50</div><div class="notch"></div></div>
+                    <div><div class="notch-label">40</div><div class="notch"></div></div>
+                    <div><div class="notch-label">30</div><div class="notch"></div></div>
+                    <div><div class="notch-label">20</div><div class="notch"></div></div>
+                    <div><div class="notch-label">10</div><div class="notch"></div></div>
+                    <div><div class="notch-label">0</div><div class="notch"></div></div>
+                </div>
+                <div class="handle"></div>
+            </div>
+        </div>
+        <div class="cursor" style="--user-color: var(--colorRed)">
+            <i class="fa-solid fa-arrow-pointer"></i>
+            <div class="cursor-name">
+                Ifnis
+            </div>
+        </div>
+    </div>
+</div>

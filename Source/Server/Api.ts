@@ -90,7 +90,7 @@ export namespace API {
     }
     export type ResponseSubscribeDevices = {
         result: 'ok',
-        devices: string[]
+        devices: { name: string, id: number }[]
     } | InvalidSession
     export type ResponseSubscribeUsers = {
         result: 'ok',
@@ -108,11 +108,6 @@ export namespace API {
     type ResponseTypes = RequestResponseMap[keyof RequestResponseMap] | Error
     export type Response = ResponseTypes
 
-    export type HeartbeatDevices = {
-        type: 'heartbeat-devices',
-        kind: 'added' | 'removed',
-        value: string[]
-    }
     export type HeartbeatUsers = {
         type: 'heartbeat-users'
     } & ({
@@ -122,6 +117,6 @@ export namespace API {
         kind: 'removed',
         uid: number
     })
-    type HeartbeatTypes = HeartbeatDevices | HeartbeatUsers
+    type HeartbeatTypes = HeartbeatUsers
     export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>
 };

@@ -307,7 +307,7 @@ const ApiHandlers: {
     'subscibe-devices': SessionHandler( async ( session, req, ws ) => {
         return {
             result: 'ok',
-            devices: session.user.allowedDevices.map( x => x.name )
+            devices: session.user.allowedDevices.map( x => ({ name: x.name, id: x.ID }) )
         }
         // TODO heartbeat-devices when this goes reactive
     } ),

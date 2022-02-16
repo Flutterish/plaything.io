@@ -153,25 +153,28 @@ function updateOptionsOverlay () {
 }
 
 type PageState = {
-    type: 'login' | 'devices',
+    type: 'login' | 'devices' | 'control',
     html: string
 };
-async function loadPage ( state: PageState ) {
+async function loadPage ( state: PageState, ...params: any[] ) {
     if ( state.type == 'login' ) {
         await loadLoginPage( state );
     }
     else if ( state.type == 'devices' ) {
         await loadDevicesPage( state );
     }
+    else if ( state.type == 'control' ) {
+        await loadControlPage( state, params[0] );
+    }
     else {
         console.error( `Tried to go to '${state.type}', but no such page exists` );
     }
 }
-async function goToPage ( type: PageState['type'], component: ComponentName ) {
+async function goToPage ( type: PageState['type'], component: ComponentName, ...params: any[] ) {
     var res = await request( component );
     var state: PageState = { type: type, html: res };
     window.history.pushState( state, '', type );
-    await loadPage( state );
+    await loadPage( state, ...params );
 }
 
 var loginPage: HTMLElement | undefined = undefined;
@@ -292,6 +295,11 @@ async function onMainBody () {
     if ( mainBody == undefined ) {
         await loadMainBody( await request( 'main.part' ) );
     }
+
+    devicesPage?.remove();
+    devicesPage = undefined;
+    controlPage?.remove();
+    controlPage = undefined;
 }
 function destroyMain () {
     if ( mainBody != undefined ) {
@@ -324,8 +332,12 @@ async function loadDevicesPage ( state: PageState ) {
         for ( const device of res.devices ) {
             var div = document.createElement( 'div' );
             div.classList.add( 'device' );
-            div.innerText = device;
+            div.innerText = device.name;
             listing.appendChild( div );
+
+            div.addEventListener( 'click', () => {
+                goToControlPage( device.id );
+            } );
         }
 
         if ( res.devices.length == 0 ) {
@@ -404,6 +416,27 @@ async function loadDevicesPage ( state: PageState ) {
     } );
 
     mainBody!.appendChild( devicesPage );
+}
+
+var controlPage: HTMLElement | undefined = undefined;
+async function goToControlPage ( id: number ) {
+    if ( !isLoggedIn() ) {
+        goToLoginPage();
+        return;    
+    }
+
+    await goToPage( 'control', 'control.part', id );
+}
+async function loadControlPage ( state: PageState, id: number ) {
+    await onMainBody();
+
+    var template = createTemplate( state.html );
+    controlPage = template.childNodes[0] as HTMLElement;
+
+    var share = template.querySelector( '.share' ) as HTMLElement;
+    var controls = template.querySelector( '.control-list' ) as HTMLElement;
+
+    mainBody!.appendChild( controlPage );
 }
 
 var cloudSaved: () => any | undefined;
