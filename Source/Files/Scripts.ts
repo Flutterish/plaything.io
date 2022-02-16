@@ -1,6 +1,6 @@
 import type { API } from '@Server/Api'
 import type { Theme } from '@Server/Themes'
-import { sockets, logIn, logOut, isLoggedIn, heartbeatHandlers, request, cachedGet, userNickname, Reconnected, Connected, LoggedOut } from './Session.js';
+import { sockets, logIn, logOut, isLoggedIn, heartbeatHandlers, request, cachedGet, userNickname, Reconnected, Connected, LoggedOut, ComponentName } from './Session.js';
 
 LoggedOut.push( goToLoginPage );
 Connected.push( goToLoginPage );
@@ -9,7 +9,9 @@ Reconnected.push( () => {
     goToDevicesPage();
 } );
 
-var flexFont = function () {
+window.addEventListener( 'load', flexFont );
+window.addEventListener( 'resize', flexFont );
+function flexFont () {
     for ( const div of document.getElementsByClassName( 'font-icon' ) ) {
         var style = window.getComputedStyle( div );
         var height = Number.parseFloat( style.height );
@@ -19,21 +21,13 @@ var flexFont = function () {
     }
 };
 
-window.addEventListener( 'load', flexFont );
-window.addEventListener( 'resize', flexFont );
-
-type PageState = {
-    type: 'login' | 'devices',
-    html: string
-};
-
 window.addEventListener( 'load', async () => {
+    setTheme( localStorage.getItem( 'theme' ) ?? currentTheme, false );
+    setAccent( localStorage.getItem( 'accent' ) ?? accent, false );
+
     request( 'wrapper.part' ).then( res => {
         loadWrapper( res );
     } );
-
-    setTheme( localStorage.getItem( 'theme' ) ?? currentTheme, false );
-    setAccent( localStorage.getItem( 'accent' ) ?? accent, false );
 } );
 
 function createTemplate ( data: string ): HTMLElement {
@@ -43,24 +37,114 @@ function createTemplate ( data: string ): HTMLElement {
     return root;
 }
 
-function waitFor ( el: HTMLElement, event: keyof HTMLElementEventMap ): Promise<void> {
-    return new Promise( res => {
-        function fun () {
-            el.removeEventListener( event, fun );
-            res();
-        }
-        el.addEventListener( event, fun );
-    } );
+var wrapper: HTMLElement | undefined = undefined;
+function loadWrapper ( html: string ) {
+    var template = createTemplate( html );
+
+    var optionsButton = template.querySelector( '#options-button' ) as HTMLDivElement;
+
+    wrapper = template.childNodes[0] as HTMLElement;
+    document.body.appendChild( wrapper );
+
+    optionsButton.addEventListener( 'click', openOptionsOverlay );
 }
 
-var loginPage: HTMLElement | undefined = undefined;
-var mainBody: HTMLElement | undefined = undefined;
-var devicesPage: HTMLElement | undefined = undefined;
-var wrapper: HTMLElement | undefined = undefined;
 var optionsOverlay: HTMLElement | undefined = undefined;
-var isOverlayInDom = false;
 var isOverlayOpen = false;
+async function openOptionsOverlay () {
+    if ( optionsOverlay == undefined ) {
+        var template = createTemplate( await request( 'optionsOverlay.part' ) );
+        optionsOverlay = template.childNodes[0] as HTMLElement;
 
+        optionsOverlay.addEventListener( 'click', e => {
+            if ( e.target != optionsOverlay ) return;
+
+            closeOptionsOverlay();
+        } );
+
+        window.addEventListener( 'keydown', e => {
+            if ( isOverlayOpen && e.key.toLowerCase() == 'escape' ) {
+                closeOptionsOverlay();
+            }
+        } )
+
+        document.body.appendChild( optionsOverlay );
+        updateOptionsOverlay();
+    }
+
+    if ( !isOverlayOpen ) {
+        isOverlayOpen = true;
+        setTimeout( () => optionsOverlay?.classList.add( 'open' ), 10 );
+    }
+}
+function closeOptionsOverlay () {
+    if ( !isOverlayOpen ) return;
+
+    isOverlayOpen = false;
+    setTimeout( () => optionsOverlay?.classList.remove( 'open' ), 10 );
+}
+function updateOptionsOverlay () {
+    var list = optionsOverlay!.querySelector( '.options' ) as HTMLElement;
+    var saved = optionsOverlay!.querySelector( '#settings-saved' ) as HTMLElement;
+
+    localSaved = () => saved.innerText = 'your settings are saved locally';
+    cloudSaved = () => saved.innerText = 'your settings are saved on the cloud'
+    saved.innerText = 'your settings are saved locally';
+
+    list.innerHTML = '';
+    function addTheme () {
+        var divLabel = document.createElement( 'div' );
+        var divControl = document.createElement( 'div' );
+
+        divLabel.innerHTML = `<label for="theme">Theme</label>`;
+        
+        var select = document.createElement( 'select' );
+        select.name = 'theme';
+        select.id = 'theme';
+        for ( const theme of availableThemes ) {
+            var option = document.createElement( 'option' );
+            option.value = theme.id;
+            option.title = theme.description;
+            option.innerText = theme.name;
+            if ( theme.id == currentTheme ) {
+                option.selected = true;
+            }
+            select.appendChild( option );
+        }
+        divControl.appendChild( select );
+        select.addEventListener( 'change', () => setTheme( select.value ) );
+
+        list.appendChild( divLabel );
+        list.appendChild( divControl );
+    }
+
+    function addAccent () {
+        var divLabel = document.createElement( 'div' );
+        var divControl = document.createElement( 'div' );
+
+        divLabel.innerHTML = `<label for="accent">Accent Colour</label>`;
+        divLabel.title = 'the colour of your cursor and the accent colour of the website';
+
+        var colorSelect = document.createElement( 'input' );
+        colorSelect.type = 'color';
+        colorSelect.name = 'accent';
+        colorSelect.id = 'accent';
+        colorSelect.value = accent;
+        divControl.appendChild( colorSelect );
+        colorSelect.addEventListener( 'change', () => setAccent( colorSelect.value ) );
+
+        list.appendChild( divLabel );
+        list.appendChild( divControl );
+    }
+
+    addTheme();
+    addAccent();
+}
+
+type PageState = {
+    type: 'login' | 'devices',
+    html: string
+};
 async function loadPage ( state: PageState ) {
     if ( state.type == 'login' ) {
         await loadLoginPage( state );
@@ -68,13 +152,21 @@ async function loadPage ( state: PageState ) {
     else if ( state.type == 'devices' ) {
         await loadDevicesPage( state );
     }
+    else {
+        console.error( `Tried to go to '${state.type}', but no such page exists` );
+    }
+}
+async function goToPage ( type: PageState['type'], component: ComponentName ) {
+    var res = await request( component );
+    var state: PageState = { type: type, html: res };
+    window.history.pushState( state, '', type );
+    await loadPage( state );
 }
 
+var loginPage: HTMLElement | undefined = undefined;
 async function goToLoginPage ( ...messages: string[] ) {
-    var res = await request( 'login.part' );
-    var state: PageState = { type: 'login', html: res };
-    window.history.pushState( state, '', 'login' );
-    await loadPage( state );
+    await goToPage( 'login', 'login.part' );
+    
     if ( loginPage != undefined && messages.length > 0 ) {
         var info = loginPage.querySelector( '#info' ) as HTMLElement;
         info.innerHTML = `
@@ -88,10 +180,7 @@ async function goToLoginPage ( ...messages: string[] ) {
     }
 }
 async function loadLoginPage ( state: PageState ) {
-    if ( mainBody != undefined ) {
-        mainBody.remove();
-        mainBody = undefined;
-    }
+    destroyMain();
 
     var template = createTemplate( state.html );
 
@@ -162,163 +251,16 @@ async function loadLoginPage ( state: PageState ) {
         }
     }
 }
-
-function loadWrapper ( html: string ) {
-    var template = createTemplate( html );
-
-    var optionsButton = template.querySelector( '#options-button' ) as HTMLDivElement;
-
-    wrapper = template.childNodes[0] as HTMLElement;
-    document.body.appendChild( wrapper );
-
-    optionsButton.addEventListener( 'click', openOptionsOverlay );
-}
-
-async function openOptionsOverlay () {
-    if ( optionsOverlay == undefined ) {
-        var template = createTemplate( await request( 'optionsOverlay.part' ) );
-        optionsOverlay = template.childNodes[0] as HTMLElement;
-
-        optionsOverlay.addEventListener( 'click', e => {
-            if ( e.target != optionsOverlay ) return;
-
-            closeOptionsOverlay();
-        } );
-
-        window.addEventListener( 'keydown', e => {
-            if ( isOverlayOpen && e.key.toLowerCase() == 'escape' ) {
-                closeOptionsOverlay();
-            }
-        } )
-    }
-
-    if ( !isOverlayInDom ) {
-        document.body.appendChild( optionsOverlay );
-        isOverlayInDom = true;
-        updateOptionsOverlay();
-    }
-
-    if ( !isOverlayOpen ) {
-        isOverlayOpen = true;
-        setTimeout( () => optionsOverlay?.classList.add( 'open' ), 10 );
-    }
-}
-
-function closeOptionsOverlay () {
-    if ( !isOverlayOpen ) return;
-
-    isOverlayOpen = false;
-    setTimeout( () => optionsOverlay?.classList.remove( 'open' ), 10 );
-}
-
-async function loadCouldPreferences () {
-    var prefs = await sockets.request<API.RequestLoadPreferences>( { type: 'load-preferences' } );
-    if ( prefs.accent != undefined ) setAccent( prefs.accent, false );
-    if ( prefs.theme != undefined )setTheme( prefs.theme, false );
-}
-
-var currentTheme = 'dracula';
-var availableThemes: Theme[] = [
-    { name: 'Dracula', id: 'dracula', description: 'The default dark theme' },
-    { name: 'Cherry', id: 'cherry', description: 'A colorful light theme' },
-    { name: 'Light', id: 'light', description: 'The default light theme' },
-];
-var cloudSaved: () => any | undefined;
-var localSaved: () => any | undefined;
-function setTheme ( theme: string, save = true ) {
-    localSaved?.();
-    document.body.setAttribute( 'theme', currentTheme = theme );
-    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', theme: theme } ).then( () => cloudSaved?.() );
-    localStorage.setItem( 'theme', currentTheme );
-}
-
-var accent = '#ff79c6';
-function setAccent ( newAccent: string, save = true ) {
-    localSaved?.();
-    document.body.style.setProperty( '--accent', accent = newAccent );
-    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', accent: accent } ).then( () => cloudSaved?.() );
-    localStorage.setItem( 'accent', accent );
-}
-
-function updateOptionsOverlay () {
-    var list = optionsOverlay!.querySelector( '.options' ) as HTMLElement;
-    var saved = optionsOverlay!.querySelector( '#settings-saved' ) as HTMLElement;
-
-    localSaved = () => saved.innerText = 'your settings are saved locally';
-    cloudSaved = () => saved.innerText = 'your settings are saved on the cloud'
-    saved.innerText = 'your settings are saved locally';
-
-    list.innerHTML = '';
-    function addTheme () {
-        var divLabel = document.createElement( 'div' );
-        var divControl = document.createElement( 'div' );
-
-        divLabel.innerHTML = `<label for="theme">Theme</label>`;
-        
-        var select = document.createElement( 'select' );
-        select.name = 'theme';
-        select.id = 'theme';
-        for ( const theme of availableThemes ) {
-            var option = document.createElement( 'option' );
-            option.value = theme.id;
-            option.title = theme.description;
-            option.innerText = theme.name;
-            if ( theme.id == currentTheme ) {
-                option.selected = true;
-            }
-            select.appendChild( option );
-        }
-        divControl.appendChild( select );
-        select.addEventListener( 'change', () => setTheme( select.value ) );
-
-        list.appendChild( divLabel );
-        list.appendChild( divControl );
-    }
-
-    function addAccent () {
-        var divLabel = document.createElement( 'div' );
-        var divControl = document.createElement( 'div' );
-
-        divLabel.innerHTML = `<label for="accent">Accent Colour</label>`;
-        divLabel.title = 'the colour of your cursor and the accent colour of the website';
-
-        var colorSelect = document.createElement( 'input' );
-        colorSelect.type = 'color';
-        colorSelect.name = 'accent';
-        colorSelect.id = 'accent';
-        colorSelect.value = accent;
-        divControl.appendChild( colorSelect );
-        colorSelect.addEventListener( 'change', () => setAccent( colorSelect.value ) );
-
-        list.appendChild( divLabel );
-        list.appendChild( divControl );
-    }
-
-    addTheme();
-    addAccent();
-}
-
-async function goToDevicesPage () {
-    if ( !isLoggedIn() ) {
-        goToLoginPage();
-        return;    
-    }
-
-    var res = await request( 'devices.part' );
-    var state: PageState = { type: 'devices', html: res };
-    window.history.pushState( state, '', 'devices' );
-    loadPage( state );
-}
-async function onMainBody () {
-    if ( mainBody == undefined ) {
-        await loadMainBody( await request( 'main.part' ) );
-    }
-}
-async function loadMainBody ( html: string ) {
+function destroyLogin () {
     if ( loginPage != undefined ) {
         loginPage.remove();
         loginPage = undefined;
     }
+}
+
+var mainBody: HTMLElement | undefined = undefined;
+async function loadMainBody ( html: string ) {
+    destroyLogin();
 
     var template = createTemplate( html );
     mainBody = template.childNodes[0] as HTMLElement;
@@ -335,7 +277,29 @@ async function loadMainBody ( html: string ) {
 
     document.body.prepend( mainBody );
 }
+async function onMainBody () {
+    if ( mainBody == undefined ) {
+        await loadMainBody( await request( 'main.part' ) );
+    }
+}
+function destroyMain () {
+    if ( mainBody != undefined ) {
+        mainBody.remove();
 
+        mainBody = undefined;
+        devicesPage = undefined;
+    }
+}
+
+var devicesPage: HTMLElement | undefined = undefined;
+async function goToDevicesPage () {
+    if ( !isLoggedIn() ) {
+        goToLoginPage();
+        return;    
+    }
+
+    await goToPage( 'devices', 'devices.part' );
+}
 async function loadDevicesPage ( state: PageState ) {
     await onMainBody();
 
@@ -429,4 +393,36 @@ async function loadDevicesPage ( state: PageState ) {
     } );
 
     mainBody!.appendChild( devicesPage );
+}
+
+var cloudSaved: () => any | undefined;
+var localSaved: () => any | undefined;
+
+var currentTheme = 'dracula';
+var availableThemes: Theme[] = [
+    { name: 'Dracula', id: 'dracula', description: 'The default dark theme' },
+    { name: 'Cherry', id: 'cherry', description: 'A colorful light theme' },
+    { name: 'Light', id: 'light', description: 'The default light theme' },
+];
+function setTheme ( theme: string, save = true ) {
+    localSaved?.();
+    document.body.setAttribute( 'theme', currentTheme = theme );
+    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', theme: theme } ).then( () => cloudSaved?.() );
+    localStorage.setItem( 'theme', currentTheme );
+}
+
+var accent = '#ff79c6';
+function setAccent ( newAccent: string, save = true ) {
+    localSaved?.();
+    document.body.style.setProperty( '--accent', accent = newAccent );
+    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', accent: accent } ).then( () => cloudSaved?.() );
+    localStorage.setItem( 'accent', accent );
+}
+
+async function loadCouldPreferences () {
+    var prefs = await sockets.request<API.RequestLoadPreferences>( { type: 'load-preferences' } );
+    if ( prefs.accent != undefined ) 
+        setAccent( prefs.accent, false );
+    if ( prefs.theme != undefined ) 
+        setTheme( prefs.theme, false );
 }
