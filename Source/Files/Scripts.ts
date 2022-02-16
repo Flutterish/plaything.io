@@ -33,6 +33,10 @@ window.addEventListener( 'load', async () => {
     } );
 } );
 
+window.addEventListener( 'popstate', e => {
+    loadPage( e.state );
+} )
+
 function createTemplate ( data: string ): HTMLElement {
     var root = document.createElement( 'div' );
     root.innerHTML = data;
@@ -154,27 +158,33 @@ function updateOptionsOverlay () {
 
 type PageState = {
     type: 'login' | 'devices' | 'control',
-    html: string
+    html: string,
+    params: any[]
 };
-async function loadPage ( state: PageState, ...params: any[] ) {
+async function loadPage ( state: PageState ) {
     if ( state.type == 'login' ) {
         await loadLoginPage( state );
     }
-    else if ( state.type == 'devices' ) {
-        await loadDevicesPage( state );
-    }
-    else if ( state.type == 'control' ) {
-        await loadControlPage( state, params[0] );
-    }
     else {
-        console.error( `Tried to go to '${state.type}', but no such page exists` );
+        if ( !isLoggedIn() ) {
+            await goToLoginPage( `You're not logged in enough to do that` );
+        }
+        else if ( state.type == 'devices' ) {
+            await loadDevicesPage( state );
+        }
+        else if ( state.type == 'control' ) {
+            await loadControlPage( state );
+        }
+        else {
+            console.error( `Tried to go to '${state.type}', but no such page exists` );
+        }
     }
 }
 async function goToPage ( type: PageState['type'], component: ComponentName, ...params: any[] ) {
     var res = await request( component );
-    var state: PageState = { type: type, html: res };
+    var state: PageState = { type: type, html: res, params: params };
     window.history.pushState( state, '', type );
-    await loadPage( state, ...params );
+    await loadPage( state );
 }
 
 var loginPage: HTMLElement | undefined = undefined;
@@ -194,6 +204,7 @@ async function goToLoginPage ( ...messages: string[] ) {
     }
 }
 async function loadLoginPage ( state: PageState ) {
+    destroyLogin();
     destroyMain();
 
     var template = createTemplate( state.html );
@@ -275,6 +286,7 @@ function destroyLogin () {
 var mainBody: HTMLElement | undefined = undefined;
 async function loadMainBody ( html: string ) {
     destroyLogin();
+    destroyMain();
 
     var template = createTemplate( html );
     mainBody = template.childNodes[0] as HTMLElement;
@@ -307,6 +319,7 @@ function destroyMain () {
 
         mainBody = undefined;
         devicesPage = undefined;
+        controlPage = undefined;
     }
 }
 
@@ -427,8 +440,10 @@ async function goToControlPage ( id: number ) {
 
     await goToPage( 'control', 'control.part', id );
 }
-async function loadControlPage ( state: PageState, id: number ) {
+async function loadControlPage ( state: PageState ) {
     await onMainBody();
+
+    var id = state.params[0] as number;
 
     var template = createTemplate( state.html );
     controlPage = template.childNodes[0] as HTMLElement;
