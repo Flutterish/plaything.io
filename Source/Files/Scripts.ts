@@ -65,18 +65,17 @@ const Workers = {
     }
 };
 
-function request ( path: string, cb: (res: string) => any ) {
-    const request = new XMLHttpRequest();
-    request.onload = function() {
-        cb( this.responseText );
-    }
-    request.open( 'GET', path, true );
-    request.send();
-}
-
-function requestAsync ( path: string ): Promise<string> {
+function request ( path: string ): Promise<string> {
     return new Promise( (res, rej) => {
-        request( path, res );
+        const request = new XMLHttpRequest();
+        request.onload = function() {
+            res( this.responseText );
+        }
+        request.onerror = function () {
+            rej();
+        }
+        request.open( 'GET', path, true );
+        request.send();
     } );
 }
 
@@ -130,7 +129,7 @@ const sockets = Workers.get<API.Request, API.Response, API.Message, SocketHeartb
 } ).mapRequests<'type', API.Request, RequestResponseMap>();
 
 window.addEventListener( 'load', async () => {
-    request( 'wrapper.part', res => {
+    request( 'wrapper.part' ).then( res => {
         loadWrapper( res );
     } );
 
@@ -214,22 +213,21 @@ function cleanSessionInfo () {
     localStorage.removeItem( 'nickname' );
 }
 async function goToLoginPage ( ...messages: string[] ) {
-    request( 'login.part', async res => {
-        var state: PageState = { type: 'login', html: res };
-        window.history.pushState( state, '', 'login' );
-        await loadPage( state );
-        if ( loginPage != undefined && messages.length > 0 ) {
-            var info = loginPage.querySelector( '#info' ) as HTMLElement;
-            info.innerHTML = `
-                <i class="fa-solid fa-skull"></i>
-            `;
-            for ( const msg of messages ) {
-                var div = document.createElement( 'div' );
-                div.innerText = msg;
-                info.appendChild( div );
-            }
+    var res = await request( 'login.part' );
+    var state: PageState = { type: 'login', html: res };
+    window.history.pushState( state, '', 'login' );
+    await loadPage( state );
+    if ( loginPage != undefined && messages.length > 0 ) {
+        var info = loginPage.querySelector( '#info' ) as HTMLElement;
+        info.innerHTML = `
+            <i class="fa-solid fa-skull"></i>
+        `;
+        for ( const msg of messages ) {
+            var div = document.createElement( 'div' );
+            div.innerText = msg;
+            info.appendChild( div );
         }
-    } );
+    }
 }
 async function loadLoginPage ( state: PageState ) {
     if ( mainBody != undefined ) {
@@ -328,7 +326,7 @@ function loadWrapper ( html: string ) {
 
 async function openOptionsOverlay () {
     if ( optionsOverlay == undefined ) {
-        var template = createTemplate( await requestAsync( 'optionsOverlay.part' ) );
+        var template = createTemplate( await request( 'optionsOverlay.part' ) );
         optionsOverlay = template.childNodes[0] as HTMLElement;
 
         optionsOverlay.addEventListener( 'click', e => {
@@ -462,15 +460,14 @@ async function goToDevicesPage () {
         return;    
     }
 
-    request( 'devices.part', res => {
-        var state: PageState = { type: 'devices', html: res };
-        window.history.pushState( state, '', 'devices' );
-        loadPage( state );
-    } );
+    var res = await request( 'devices.part' );
+    var state: PageState = { type: 'devices', html: res };
+    window.history.pushState( state, '', 'devices' );
+    loadPage( state );
 }
 async function onMainBody () {
     if ( mainBody == undefined ) {
-        await loadMainBody( await requestAsync( 'main.part' ) );
+        await loadMainBody( await request( 'main.part' ) );
     }
 }
 async function loadMainBody ( html: string ) {
