@@ -85,3 +85,37 @@ export class Reactive<T> {
         if ( index != -1 ) other.bindees.splice( index );
     }
 }
+
+export type ReactiveAggregate<Tin, Tout = Tin> = {
+    add: (source: Reactive<Tin>) => any,
+    remove: (source: Reactive<Tin>) => any,
+    getSources: () => Reactive<Tin>[],
+    reactive: Reactive<Tout>
+};
+export function CreateReactiveAggregate<Tin, Tout = Tin> ( fn: (sources: Reactive<Tin>[], newValue?: Tin, oldValue?: Tin) => Tout ): ReactiveAggregate<Tin, Tout> {
+    const sources: Reactive<Tin>[] = [];
+
+    var output = new Reactive<Tout>( fn( sources ) );
+
+    function changed ( newValue?: Tin, oldValue?: Tin ) {
+        output.Value = fn( sources, newValue, oldValue );
+    }
+
+    return {
+        add: (source: Reactive<Tin>) => {
+            sources.push( source );
+            source.AddOnValueChanged( changed );
+            changed( source.Value, undefined );
+        },
+        remove: (source: Reactive<Tin>) => {
+            var index = sources.indexOf( source );
+            if ( index != -1 ) {
+                source.RemoveOnValueChanged( changed );
+                sources.splice( index );
+                changed( undefined, source.Value );
+            }
+        },
+        getSources: () => sources,
+        reactive: output
+    };
+}

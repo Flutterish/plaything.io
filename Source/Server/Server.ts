@@ -4,7 +4,7 @@ import CreateSessionPool from './Session.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { API, RequestResponseMap, Uncertain } from './Api';
 import { FreeLogFile, Log, LogConnection, LogWithSource } from './Logger.js';
-import { User, CreateUserPool, UserSession } from './User.js';
+import { User, CreateUserPool, UserSession, CreateActiveUserPool } from './User.js';
 import { SessionKey } from './Session';
 import { PoolSubscription, CreatePoolSubscription } from './Subscription.js';
 
@@ -14,15 +14,21 @@ const serverName = 'sample-server';
 // sessions - a singe user can have multiple sessions
 const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
 // all unique users with at least one session
-const loggedInUsers = CreateUserPool<UserSession>( loginSessions );
+const loggedInUsers = CreateUserPool( loginSessions );
+// ones with at least one active session
+const activeUsers = CreateActiveUserPool( loginSessions );
 
-loggedInUsers.entryAdded.addEventListener( user => {
+activeUsers.entryAdded.addEventListener( user => {
     user.lastActive = Date.now();
     user.isActive.Value = true;
+
+    LogWithSource( `User ${user.UID}`, `User ${user.nickname} is active` );
 } );
-loggedInUsers.entryRemoved.addEventListener( user => {
+activeUsers.entryRemoved.addEventListener( user => {
     user.lastActive = Date.now();
     user.isActive.Value = false;
+
+    LogWithSource( `User ${user.UID}`, `User ${user.nickname} is no longer active` );
 } );
 
 const wsSessions = new Map<WebSocket, SessionKey>();
@@ -39,14 +45,10 @@ setInterval( () => {
         // TODO if a websocket exists on this connection, it is active
         if ( session.isActive.Value && session.lastActive + 20 * 1000 < now )
             session.isActive.Value = false;
-            
+
         if ( session.lastActive + 24 * 60 * 60 * 1000 < now ) {
             loginSessions.destroySession( key );
         }
-    }
-
-    for ( const user of loggedInUsers.getValues() ) {
-        user.isActive.Value = user.lastActive + 20 * 1000 > now;
     }
 }, 30 * 1000 );
 
@@ -104,6 +106,10 @@ wss.addListener( 'connection', (ws, req) => {
 
     ws.addEventListener( 'close', e => {
         LogConnection( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
+        var key = wsSessions.get( ws );
+        if ( key != undefined ) {
+            loginSessions.getSession( key )!.isActive.Value = false;
+        }
         wsSessions.delete( ws );
         wsUserSubscriptions.get( ws )?.unsubscribe();
         wsUserSubscriptions.delete( ws );
@@ -324,20 +330,17 @@ const ApiHandlers: {
             }
 
             wsUserSubscriptions.set( ws, CreatePoolSubscription<User>(
-                loggedInUsers,
-                ( user, scan ) => { if ( !scan && user.isActive.Value ) addOrUpdate( user, 'added' ) },
-                ( user ) => { if ( user.isActive.Value ) remove( user ) }
-            ).ReactTo( user => user.isActive, ( user, value ) => {
-                if ( value ) addOrUpdate( user, 'added' );
-                else remove( user );
-            } ).ReactTo( user => user.accent, ( user, value ) => {
-                if ( user.isActive.Value ) addOrUpdate( user, 'updated' );
+                activeUsers,
+                ( user, scan ) => { if ( !scan ) addOrUpdate( user, 'added' ) },
+                ( user ) => remove( user )
+            ).ReactTo( user => user.accent, ( user, value ) => {
+                addOrUpdate( user, 'updated' )
             } ) );
         }
 
         return {
             result: 'ok',
-            users: loggedInUsers.getValues().filter( x => x != session.user && x.isActive.Value )
+            users: activeUsers.getValues().filter( x => x != session.user )
                 .map( x => ({ nickname: x.nickname, location: serverName, uid: x.UID, accent: x.accent.Value }) )   
         }
     } ),
