@@ -11,6 +11,8 @@ function makeUserSync ( nick: string, pass: string, devices: Device[] = [] ): Us
         passwordHash: bcrypt.hashSync( pass ),
         allowedDevices: devices,
         accent: new Reactive<string>( '#ff79c6' ),
+        lastActive: 0,
+        isActive: new Reactive<boolean>( false ),
         UID: nextUID++
     };
 }
@@ -36,6 +38,8 @@ export function MakeAnonUser ( nickname: string ): User {
         nickname: nickname,
         allowedDevices: AnonymousPermitedDevices,
         accent: new Reactive<string>( '#ff79c6' ),
+        lastActive: 0,
+        isActive: new Reactive<boolean>( false ),
         UID: nextUID++
     };
 }

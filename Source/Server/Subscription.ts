@@ -1,5 +1,4 @@
 import { Reactive } from "./Reactive.js";
-import { SessionKey } from './Session';
 
 export type PoolSubscription<Tsession> = {
     unsubscribe: () => any,
@@ -9,14 +8,19 @@ export type PoolSubscription<Tsession> = {
     ) => PoolSubscription<Tsession>
 };
 
-export function CreateSessionSubscription<Tsession> (
-    sessionPool: {
-        entryAdded: { addEventListener: (fn: typeof added) => any, removeEventListener: (fn: typeof added) => any },
-        entryRemoved: { addEventListener: (fn: typeof removed) => any, removeEventListener: (fn: typeof removed) => any },
-        getAll: () => Readonly<{[Key: SessionKey]: Tsession }>
-    },
-    added: ( session: Tsession, scan?: true ) => any,
-    removed: ( session: Tsession ) => any
+export type AddedListener<Tsession> = ( session: Tsession, scan?: true ) => any;
+export type RemovedListener<Tsession> = ( session: Tsession ) => any;
+
+export type SubscribeablePool<Tsession> = {
+    entryAdded: { addEventListener: (fn: AddedListener<Tsession>) => any, removeEventListener: (fn: AddedListener<Tsession>) => any },
+    entryRemoved: { addEventListener: (fn: RemovedListener<Tsession>) => any, removeEventListener: (fn: RemovedListener<Tsession>) => any },
+    getValues: () => Readonly<Array<Tsession>>
+}
+
+export function CreatePoolSubscription<Tsession> (
+    sessionPool: SubscribeablePool<Tsession>,
+    added: AddedListener<Tsession>,
+    removed: RemovedListener<Tsession>
 ): PoolSubscription<Tsession> {
     function entryAdded ( session: Tsession, scan?: true ) {
         added( session, scan );
@@ -34,9 +38,8 @@ export function CreateSessionSubscription<Tsession> (
     sessionPool.entryAdded.addEventListener( entryAdded );
     sessionPool.entryRemoved.addEventListener( entryRemoved );
     
-    var all = sessionPool.getAll();
-    for ( const key in all ) {
-        added( all[key], true );
+    for ( const s of sessionPool.getValues() ) {
+        added( s, true );
     }
 
     function reactToFactory () {
@@ -65,9 +68,8 @@ export function CreateSessionSubscription<Tsession> (
                 chainRemoved( session );
             };
 
-            var all = sessionPool.getAll();
-            for ( const key in all ) {
-                selfAdded( all[key], true );
+            for ( const s of sessionPool.getValues() ) {
+                selfAdded( s, true );
             }
 
             return {

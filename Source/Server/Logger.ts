@@ -47,7 +47,14 @@ export function Log ( ...args: any[] ) {
     saveLog( 'system', args.map( x => typeof x === 'object' ? JSON.stringify( x ) : x ).join( ' ' ) );
 }
 
-export function LogConnecction ( who: string, direction: 'in' | 'out', ...args: any[] ) {
+export function LogWithSource ( source: string, ...args: any[] ) {
+    args = args.map( x => process( x ) );
+    console.log( `[${new Date().toLocaleString()}]:`, ...args );
+
+    saveLog( source, args.map( x => typeof x === 'object' ? JSON.stringify( x ) : x ).join( ' ' ) );
+}
+
+export function LogConnection ( who: string, direction: 'in' | 'out', ...args: any[] ) {
     args = args.map( x => process( x ) );
     console.log( `[${new Date().toLocaleString()}]:`, who, direction == 'in' ? '-->' : '<--', ...args );
 

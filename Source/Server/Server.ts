@@ -3,18 +3,30 @@ import { AllowAnonymousAccess, getUser, MakeAnonUser, verifyUser } from './White
 import CreateSessionPool from './Session.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { API, RequestResponseMap, Uncertain } from './Api';
-import { FreeLogFile, LogConnecction } from './Logger.js';
-import { UserSession } from './User.js';
+import { FreeLogFile, Log, LogConnection, LogWithSource } from './Logger.js';
+import { User, CreateUserPool, UserSession } from './User.js';
 import { SessionKey } from './Session';
-import { Reactive } from './Reactive.js';
-import { PoolSubscription, CreateSessionSubscription } from './Subscription.js';
+import { PoolSubscription, CreatePoolSubscription } from './Subscription.js';
 
 const app = express();
 const port = 8080;
 const serverName = 'sample-server';
+// sessions - a singe user can have multiple sessions
 const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
+// all unique users with at least one session
+const loggedInUsers = CreateUserPool<UserSession>( loginSessions );
+
+loggedInUsers.entryAdded.addEventListener( user => {
+    user.lastActive = Date.now();
+    user.isActive.Value = true;
+} );
+loggedInUsers.entryRemoved.addEventListener( user => {
+    user.lastActive = Date.now();
+    user.isActive.Value = false;
+} );
+
 const wsSessions = new Map<WebSocket, SessionKey>();
-const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<UserSession>>();
+const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
@@ -25,10 +37,16 @@ setInterval( () => {
         var session = loginSessions.getSession( key )!;
 
         // TODO if a websocket exists on this connection, it is active
-        session.isActive.Value = session.lastActive + 20 * 1000 > now;
+        if ( session.isActive.Value && session.lastActive + 20 * 1000 < now )
+            session.isActive.Value = false;
+            
         if ( session.lastActive + 24 * 60 * 60 * 1000 < now ) {
             loginSessions.destroySession( key );
         }
+    }
+
+    for ( const user of loggedInUsers.getValues() ) {
+        user.isActive.Value = user.lastActive + 20 * 1000 > now;
     }
 }, 30 * 1000 );
 
@@ -50,22 +68,22 @@ app.get( '/api/*', async (req, res) => {
         };
     }
     else {
-        LogConnecction( req.ip, 'in', { path: req.path, query: req.query } );
+        LogConnection( req.ip, 'in', { path: req.path, query: req.query } );
         var error: API.Error = {
             error: 'incorrect API call'
         };
         res.setHeader( 'content-type', 'application/json' );
-        LogConnecction( req.ip, 'out', error );
+        LogConnection( req.ip, 'out', error );
         res.send( JSON.stringify( error ) );
         res.end();
         return;
     }
 
-    if ( request.type in ApiHandlers ) LogConnecction( req.ip, 'in', request );
+    if ( request.type in ApiHandlers ) LogConnection( req.ip, 'in', request );
     res.setHeader( 'content-type', 'application/json' );
     var data = await processRequest( request );
     if ( data != undefined ) {
-        LogConnecction( req.ip, 'out', data );
+        LogConnection( req.ip, 'out', data );
         res.send( JSON.stringify( data ) );
     }
     res.end();
@@ -82,23 +100,23 @@ app.get( '/*', (req, res) => {
 const wss = new WebSocketServer({ noServer: true });
 wss.addListener( 'connection', (ws, req) => {
     var address = req.socket.remoteAddress ?? '???';
-    LogConnecction( address, 'in', `Client established a websocket` );
+    LogConnection( address, 'in', `Client established a websocket` );
 
     ws.addEventListener( 'close', e => {
-        LogConnecction( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
+        LogConnection( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
         wsSessions.delete( ws );
         wsUserSubscriptions.get( ws )?.unsubscribe();
         wsUserSubscriptions.delete( ws );
         FreeLogFile( address );
     } );
     ws.addEventListener( 'error', err => {
-        LogConnecction( address, 'in', `Error on connection:`, err.message );
+        LogConnection( address, 'in', `Error on connection:`, err.message );
     } );
     ws.addEventListener( 'message', msg => {
         var str = msg.data.toString();
         try {
             var data = JSON.parse( str );
-            if ( data.type in ApiHandlers ) LogConnecction( address, 'in', data );
+            if ( data.type in ApiHandlers ) LogConnection( address, 'in', data );
 
             if ( typeof data !== 'object' || typeof data.type !== 'string' ) {
                 var r = {
@@ -106,25 +124,25 @@ wss.addListener( 'connection', (ws, req) => {
                     id: data?.id
                 };
                 ws.send( JSON.stringify( r ) );
-                LogConnecction( address, 'out', r );
+                LogConnection( address, 'out', r );
             }
             else {
                 processRequest( data, ws ).then( res => {
                     if ( res != undefined ) {
                         ws.send( JSON.stringify( res ) );
-                        LogConnecction( address, 'out', res );
+                        LogConnection( address, 'out', res );
                     }
                 } );
             }
         }
         catch {
-            LogConnecction( address, 'in', str );
+            LogConnection( address, 'in', str );
             var r = {
                 error: 'Invalid request',
                 id: data?.id
             };
             ws.send( JSON.stringify( r ) );
-            LogConnecction( address, 'out', r );
+            LogConnection( address, 'out', r );
         }
     } );
 } );
@@ -152,8 +170,9 @@ async function processRequest (req: (API.Request & { id?: number }) | API.Messag
     if ( ws != undefined || 'sessionKey' in req ) {
         var key = getSessionKey( ws, (req as any).sessionKey );
         if ( isSessionValid( key ) ) {
-            loginSessions.getSession( key )!.lastActive = Date.now();
-            loginSessions.getSession( key )!.isActive.Value = true;
+            var session = loginSessions.getSession( key )!;
+            session.lastActive = session.user.lastActive = Date.now();
+            session.isActive.Value = session.user.isActive.Value = true;
         }
     }
 
@@ -288,38 +307,38 @@ const ApiHandlers: {
 
     'subscibe-users': SessionHandler( async ( session, req, ws ) => {
         if ( ws != undefined && !wsUserSubscriptions.has( ws ) ) {
-            wsUserSubscriptions.set( ws, CreateSessionSubscription<UserSession>(
-                loginSessions,
-                ( session, scan ) => { if ( !scan && session.isActive.Value ) ws.send( JSON.stringify( { 
-                    type: 'heartbeat-users', 
-                    kind: 'added', 
-                    user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName, accent: session.user.accent.Value } 
-                } as API.HeartbeatUsers ) ) },
-                ( session ) => { if ( session.isActive.Value ) ws.send( JSON.stringify( {
+            function addOrUpdate ( user: User, kind: 'added' | 'updated' ) {
+                ws!.send( JSON.stringify( {
+                    type: 'heartbeat-users',
+                    kind: kind,
+                    user: { uid: user.UID, nickname: user.nickname, location: serverName, accent: user.accent.Value }
+                } as API.HeartbeatUsers ) );
+            }
+
+            function remove ( user: User ) {
+                ws!.send( JSON.stringify( {
                     type: 'heartbeat-users',
                     kind: 'removed',
-                    uid: session.user.UID
-                } as API.HeartbeatUsers ) ) }
-            ).ReactTo( session => session.isActive, ( session, value ) => { if ( value ) ws.send( JSON.stringify( {
-                    type: 'heartbeat-users', 
-                    kind: 'added', 
-                    user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName, accent: session.user.accent.Value } 
-                } as API.HeartbeatUsers ) ); else ws.send( JSON.stringify( {
-                    type: 'heartbeat-users',
-                    kind: 'removed',
-                    uid: session.user.UID
-                } as API.HeartbeatUsers ) ) }
-            ).ReactTo( session => session.user.accent, ( session, value ) => { if ( session.isActive.Value ) ws.send( JSON.stringify( {
-                    type: 'heartbeat-users',
-                    kind: 'updated',
-                    user: { uid: session.user.UID, nickname: session.user.nickname, location: serverName, accent: value } 
-            } as API.HeartbeatUsers ) ) } ) );
+                    uid: user.UID
+                } as API.HeartbeatUsers ) );
+            }
+
+            wsUserSubscriptions.set( ws, CreatePoolSubscription<User>(
+                loggedInUsers,
+                ( user, scan ) => { if ( !scan && user.isActive.Value ) addOrUpdate( user, 'added' ) },
+                ( user ) => { if ( user.isActive.Value ) remove( user ) }
+            ).ReactTo( user => user.isActive, ( user, value ) => {
+                if ( value ) addOrUpdate( user, 'added' );
+                else remove( user );
+            } ).ReactTo( user => user.accent, ( user, value ) => {
+                if ( user.isActive.Value ) addOrUpdate( user, 'updated' );
+            } ) );
         }
 
         return {
             result: 'ok',
-            users: Object.values( loginSessions.getAll() ).filter( x => x.user != session.user && x.isActive.Value )
-                .map( x => ({ nickname: x.user.nickname, location: serverName, uid: x.user.UID, accent: x.user.accent.Value }) )   
+            users: loggedInUsers.getValues().filter( x => x != session.user && x.isActive.Value )
+                .map( x => ({ nickname: x.nickname, location: serverName, uid: x.UID, accent: x.accent.Value }) )   
         }
     } ),
 

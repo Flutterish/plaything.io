@@ -43,6 +43,7 @@ export default function CreateSessionPool<Tdata> ( name?: string ) {
             }
         },
         getAll: (): Readonly<typeof sessions> => sessions,
+        getValues: (): Readonly<Array<Tdata>> => Object.values( sessions ),
         entryAdded: entryAddedEvent,
         entryRemoved: entryRemovedEvent,
 
@@ -52,6 +53,7 @@ export default function CreateSessionPool<Tdata> ( name?: string ) {
             return {
                 name: name,
                 getAll: pool.getAll,
+                getValues: pool.getValues,
                 createSession: ( data: Tdata ) => {
                     var key = pool.createSession( data );
                     index.set( fn( data ), key );
