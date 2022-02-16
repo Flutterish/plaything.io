@@ -13,7 +13,7 @@ export type RequestResponseMap = {
         : Req extends API.RequestLogin['type'] ? API.ResponseLogin
         : Req extends API.RequestServerInfo['type'] ? API.ResponseServerInfo
         : Req extends API.RequestLogout['type'] ? API.ResponseLogout
-        : Req extends API.RequestSessionReconnect['type'] ? API.ResponseSesssionExists
+        : Req extends API.RequestSessionReconnect['type'] ? API.ResponseSessionExists
         : Req extends API.SubscribeDevices['type'] ? API.ResponseSubscribeDevices
         : Req extends API.SubscribeUsers['type'] ? API.ResponseSubscribeUsers
         : Req extends API.RequestLoadPreferences['type'] ? API.ResponseLoadPreferences
@@ -85,7 +85,7 @@ export namespace API {
     export type ResponseLogout = {
         result: 'ok' | 'session not found'
     }
-    export type ResponseSesssionExists = {
+    export type ResponseSessionExists = {
         value: boolean
     }
     export type ResponseSubscribeDevices = {

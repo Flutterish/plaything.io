@@ -124,9 +124,13 @@ const sockets = Workers.get<API.Request, API.Response, API.Message, SocketHeartb
         goToLoginPage( 'Session invalidated' );
         rej( 'session not found' );
     }
-
-    res( data );
-} ).mapRequests<'type', API.Request, RequestResponseMap>();
+    else if ( 'error' in data ) {
+        rej( data );
+    }
+    else {
+        res( data );
+    }
+} ).mapRequests<'type', API.Request, {[Key in keyof RequestResponseMap]: Exclude<RequestResponseMap[Key], API.InvalidSession>}>();
 
 window.addEventListener( 'load', async () => {
     request( 'wrapper.part' ).then( res => {
@@ -363,10 +367,8 @@ function closeOptionsOverlay () {
 
 async function loadCouldPreferences () {
     var prefs = await sockets.request<API.RequestLoadPreferences>( { type: 'load-preferences' } );
-    if ( prefs.result == 'ok' ) {
-        if ( prefs.accent != undefined ) setAccent( prefs.accent, false );
-        if ( prefs.theme != undefined )setTheme( prefs.theme, false );
-    }
+    if ( prefs.accent != undefined ) setAccent( prefs.accent, false );
+    if ( prefs.theme != undefined )setTheme( prefs.theme, false );
 }
 
 var currentTheme = 'dracula';
@@ -502,16 +504,14 @@ async function loadDevicesPage ( state: PageState ) {
     var usersList = devicesPage.querySelector( '#users' ) as HTMLElement;
 
     sockets.request<API.SubscribeDevices>( { type: 'subscibeDevices' } ).then( res => {
-        if ( res.result == 'ok' ) {
-            for ( const device of res.devices ) {
-                var div = document.createElement( 'div' );
-                div.classList.add( 'device' );
-                div.innerText = device;
-                listing.appendChild( div );
-            }
+        for ( const device of res.devices ) {
+            var div = document.createElement( 'div' );
+            div.classList.add( 'device' );
+            div.innerText = device;
+            listing.appendChild( div );
         }
 
-        if ( res.result != 'ok' || res.devices.length == 0 ) {
+        if ( res.devices.length == 0 ) {
             listing.append( 'Nothing!' );
         }
     } );
@@ -572,13 +572,11 @@ async function loadDevicesPage ( state: PageState ) {
         }
     };
     sockets.request<API.SubscribeUsers>( { type: 'subscibeUsers' } ).then( res => {
-        if ( res.result == 'ok' ) {
-            for ( const user of res.users ) {
-                addUser( user.nickname, user.location, user.uid, user.accent );
-            }
+        for ( const user of res.users ) {
+            addUser( user.nickname, user.location, user.uid, user.accent );
         }
 
-        if ( res.result != 'ok' || res.users.length == 0 ) {
+        if ( res.users.length == 0 ) {
             usersList.append( nooneText = document.createTextNode( 'No one!' ) );
         }
     } );
