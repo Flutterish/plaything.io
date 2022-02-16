@@ -1,5 +1,6 @@
 import type { API } from '@Server/Api'
 import type { Theme } from '@Server/Themes'
+import { Reactive } from './Reactive.js';
 import { sockets, logIn, logOut, isLoggedIn, heartbeatHandlers, request, cachedGet, userNickname, Reconnected, Connected, LoggedOut, ComponentName } from './Session.js';
 
 LoggedOut.push( goToLoginPage );
@@ -22,8 +23,8 @@ function flexFont () {
 };
 
 window.addEventListener( 'load', async () => {
-    setTheme( localStorage.getItem( 'theme' ) ?? currentTheme, false );
-    setAccent( localStorage.getItem( 'accent' ) ?? accent, false );
+    currentTheme.Value = localStorage.getItem( 'theme' ) ?? currentTheme.Value;
+    accent.Value = localStorage.getItem( 'accent' ) ?? accent.Value;
 
     request( 'wrapper.part' ).then( res => {
         loadWrapper( res );
@@ -50,6 +51,8 @@ function loadWrapper ( html: string ) {
 }
 
 var optionsOverlay: HTMLElement | undefined = undefined;
+var optionTheme: Reactive<string> | undefined;
+var optionAccent: Reactive<string> | undefined;
 var isOverlayOpen = false;
 async function openOptionsOverlay () {
     if ( optionsOverlay == undefined ) {
@@ -106,13 +109,15 @@ function updateOptionsOverlay () {
             option.value = theme.id;
             option.title = theme.description;
             option.innerText = theme.name;
-            if ( theme.id == currentTheme ) {
-                option.selected = true;
-            }
             select.appendChild( option );
         }
         divControl.appendChild( select );
-        select.addEventListener( 'change', () => setTheme( select.value ) );
+        optionTheme = new Reactive<string>( currentTheme );
+        optionTheme.AddOnValueChanged( v => select.value = v, true );
+        select.addEventListener( 'change', () => {
+            optionTheme!.Value = select.value;
+            cloudSaveTheme( select.value );
+        } );
 
         list.appendChild( divLabel );
         list.appendChild( divControl );
@@ -129,9 +134,13 @@ function updateOptionsOverlay () {
         colorSelect.type = 'color';
         colorSelect.name = 'accent';
         colorSelect.id = 'accent';
-        colorSelect.value = accent;
         divControl.appendChild( colorSelect );
-        colorSelect.addEventListener( 'change', () => setAccent( colorSelect.value ) );
+        optionAccent = new Reactive<string>( accent );
+        optionAccent.AddOnValueChanged( v => colorSelect.value = v, true );
+        colorSelect.addEventListener( 'change', () => {
+            optionAccent!.Value = colorSelect.value;
+            cloudSaveAccent( colorSelect.value )
+        } );
 
         list.appendChild( divLabel );
         list.appendChild( divControl );
@@ -398,31 +407,41 @@ async function loadDevicesPage ( state: PageState ) {
 var cloudSaved: () => any | undefined;
 var localSaved: () => any | undefined;
 
-var currentTheme = 'dracula';
+var currentTheme = new Reactive<string>( 'dracula' );
+currentTheme.AddOnValueChanged( v => {
+    document.body.setAttribute( 'theme', v )
+    localStorage.setItem( 'theme', v );
+} );
 var availableThemes: Theme[] = [
     { name: 'Dracula', id: 'dracula', description: 'The default dark theme' },
     { name: 'Cherry', id: 'cherry', description: 'A colorful light theme' },
     { name: 'Light', id: 'light', description: 'The default light theme' },
 ];
-function setTheme ( theme: string, save = true ) {
+function cloudSaveTheme ( theme: string ) {
     localSaved?.();
-    document.body.setAttribute( 'theme', currentTheme = theme );
-    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', theme: theme } ).then( () => cloudSaved?.() );
-    localStorage.setItem( 'theme', currentTheme );
+    currentTheme.Value = theme;
+    if ( isLoggedIn() ) {
+        sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', theme: theme } ).then( () => cloudSaved?.() );
+    }
 }
 
-var accent = '#ff79c6';
-function setAccent ( newAccent: string, save = true ) {
+var accent = new Reactive<string>( '#ff79c6' );
+accent.AddOnValueChanged( v => {
+    document.body.style.setProperty( '--accent', v )
+    localStorage.setItem( 'accent', v );
+} );
+function cloudSaveAccent ( newAccent: string ) {
     localSaved?.();
-    document.body.style.setProperty( '--accent', accent = newAccent );
-    if ( isLoggedIn() && save ) sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', accent: accent } ).then( () => cloudSaved?.() );
-    localStorage.setItem( 'accent', accent );
+    accent.Value = newAccent;
+    if ( isLoggedIn() ) {
+        sockets.request<API.RequestSavePreferences>( { type: 'save-prefereces', accent: newAccent } ).then( () => cloudSaved?.() );
+    }
 }
 
 async function loadCouldPreferences () {
     var prefs = await sockets.request<API.RequestLoadPreferences>( { type: 'load-preferences' } );
     if ( prefs.accent != undefined ) 
-        setAccent( prefs.accent, false );
+        accent.Value = prefs.accent;
     if ( prefs.theme != undefined ) 
-        setTheme( prefs.theme, false );
+        currentTheme.Value = prefs.theme;
 }

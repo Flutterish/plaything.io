@@ -31,6 +31,7 @@ activeUsers.entryRemoved.addEventListener( user => {
     LogWithSource( `User ${user.UID}`, `User ${user.nickname} is no longer active` );
 } );
 
+// TODO we will need to abstract this away
 const wsSessions = new Map<WebSocket, SessionKey>();
 const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
