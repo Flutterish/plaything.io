@@ -1,83 +1,13 @@
-import { API, ID, RequestResponseMap } from '@Server/Api'
-import { SessionKey } from '@Server/Session';
+import type { API } from '@Server/Api'
 import type { Theme } from '@Server/Themes'
-import type { SocketHeartbeat } from '@WebWorkers/Socket';
+import { sockets, logIn, logOut, isLoggedIn, heartbeatHandlers, request, cachedGet, userNickname, Reconnected, Connected, LoggedOut } from './Session.js';
 
-const Workers = {
-    get: <Treq, Tres, Tmessage, Theartbeat = void>( name: string, defaultHandler?: (data: Theartbeat) => any, intercept?: (data: Tres, res: (data: Tres) => any, rej: (err: any) => any) => any ) => {
-        var worker = new Worker( name );
-        var callbacks: { [id: number]: [(data: any) => any, (err: any) => any] } = {};
-        var id = 0;
-
-        worker.onmessage = msg => {
-            if ( msg.data.id == undefined || callbacks[msg.data.id] == undefined ) {
-                defaultHandler?.( msg.data as Theartbeat );
-            }
-            else {
-                callbacks[msg.data.id][0]( msg.data );
-                delete callbacks[msg.data.id];
-            }
-        };
-        worker.onerror = msg => {
-            console.error( msg );
-        };
-        worker.onmessageerror = msg => {
-            console.error( msg );
-        };
-
-        return {
-            request: <Trequest extends Treq = Treq, Tresponse extends Tres = Tres>( data: Trequest ): Promise<Tresponse> => {
-                return new Promise( (res, rej) => {
-                    (data as ID<Trequest>).id = id;
-                    callbacks[id++] = [data => {
-                        if ( intercept == undefined )
-                            res(data);
-                        else
-                            intercept( data, res as any, rej );
-                    }, rej];
-                    worker.postMessage( data );
-                } );
-            },
-            message: <Tmsg extends Tmessage>( data: Tmsg ) => {
-                worker.postMessage( data );
-            },
-
-            mapRequests: <Tprop extends string, Treqq extends { [Key in Tprop]: string } & Treq, Tmap extends { [Key in Treqq[Tprop]]: Tres }>() => {
-                return {
-                    request: <Trequest extends Treqq>( data: Trequest ): Promise<Tmap[Trequest[Tprop]]> => {
-                        return new Promise( (res, rej) => {
-                            (data as ID<Trequest>).id = id;
-                            callbacks[id++] = [data => {
-                                if ( intercept == undefined )
-                                    res(data);
-                                else
-                                    intercept( data, res as any, rej );
-                            }, rej];
-                            worker.postMessage( data );
-                        } );
-                    },
-                    message: <Tmsg extends Tmessage>( data: Tmsg ) => {
-                        worker.postMessage( data );
-                    }
-                };
-            }
-        };
-    }
-};
-
-function request ( path: string ): Promise<string> {
-    return new Promise( (res, rej) => {
-        const request = new XMLHttpRequest();
-        request.onload = function() {
-            res( this.responseText );
-        }
-        request.onerror = function () {
-            rej();
-        }
-        request.open( 'GET', path, true );
-        request.send();
-    } );
-}
+LoggedOut.push( goToLoginPage );
+Connected.push( goToLoginPage );
+Reconnected.push( () => {
+    loadCouldPreferences();
+    goToDevicesPage();
+} );
 
 var flexFont = function () {
     for ( const div of document.getElementsByClassName( 'font-icon' ) ) {
@@ -97,41 +27,6 @@ type PageState = {
     html: string
 };
 
-type HeartbeatHandlers = {
-    userList?: (e: API.HeartbeatUsers) => any
-};
-const heartbeatHandlers: HeartbeatHandlers = {};
-const sockets = Workers.get<API.Request, API.Response, API.Message, SocketHeartbeat>( 'WebWorkers/Socket.js', heartbeat => {
-    if ( heartbeat.type == 'reconnected' ) {
-        if ( sessionKey != undefined ) {
-            sockets.request<API.RequestSessionReconnect>( { type: 'reconnect', sessionKey: sessionKey } ).then( res => {
-                if ( !res.value ) {
-                    cleanSessionInfo();
-                    goToLoginPage( 'Session invalidated' );
-                }
-            } );
-        }
-    }
-    else if ( heartbeat.type == 'heartbeat-users' ) {
-        heartbeatHandlers.userList?.( heartbeat );
-    }
-    else {
-        console.log( heartbeat );
-    }
-}, (data, res, rej) => {
-    if ( 'result' in data && data.result == 'session not found' ) {
-        cleanSessionInfo();
-        goToLoginPage( 'Session invalidated' );
-        rej( 'session not found' );
-    }
-    else if ( 'error' in data ) {
-        rej( data );
-    }
-    else {
-        res( data );
-    }
-} ).mapRequests<'type', API.Request, {[Key in keyof RequestResponseMap]: Exclude<RequestResponseMap[Key], API.InvalidSession>}>();
-
 window.addEventListener( 'load', async () => {
     request( 'wrapper.part' ).then( res => {
         loadWrapper( res );
@@ -139,22 +34,6 @@ window.addEventListener( 'load', async () => {
 
     setTheme( localStorage.getItem( 'theme' ) ?? currentTheme, false );
     setAccent( localStorage.getItem( 'accent' ) ?? accent, false );
-
-    var key = localStorage.getItem( 'session_key' );
-    if ( key != null && (await sockets.request<API.RequestSessionReconnect>( { type: 'reconnect', sessionKey: key } )).value ) {
-        userNickname = localStorage.getItem( 'nickname' );
-        sessionKey = key;
-        loadCouldPreferences();
-        goToDevicesPage();
-    }
-    else {
-        goToLoginPage();
-    }
-
-    setInterval( () => {
-        if ( sessionKey != undefined )
-            sockets.message<API.AliveAck>( { type: 'alive' } );
-    }, 10 * 1000 );
 } );
 
 function createTemplate ( data: string ): HTMLElement {
@@ -174,16 +53,6 @@ function waitFor ( el: HTMLElement, event: keyof HTMLElementEventMap ): Promise<
     } );
 }
 
-type RequestCache = {
-    loginInformation: API.ResponseLoginInfo,
-    serverInformation: API.ResponseServerInfo
-};
-const cache: Partial<RequestCache> = {};
-async function cachedGet<T extends keyof RequestCache> ( type: T ): Promise<RequestCache[T]> {
-    // @ts-ignore
-    return cache[type] ??= await sockets.request( { type: type } );
-}
-
 var loginPage: HTMLElement | undefined = undefined;
 var mainBody: HTMLElement | undefined = undefined;
 var devicesPage: HTMLElement | undefined = undefined;
@@ -201,21 +70,6 @@ async function loadPage ( state: PageState ) {
     }
 }
 
-var userNickname: string | undefined | null;
-var sessionKey: SessionKey | undefined | null;
-function logOut () {
-    if ( sessionKey != undefined ) {
-        sockets.request<API.RequestLogout>( { type: 'logout' } );
-        cleanSessionInfo();
-        goToLoginPage();
-    }
-}
-function cleanSessionInfo () {
-    userNickname = undefined;
-    sessionKey = undefined;
-    localStorage.removeItem( 'session_key' );
-    localStorage.removeItem( 'nickname' );
-}
 async function goToLoginPage ( ...messages: string[] ) {
     var res = await request( 'login.part' );
     var state: PageState = { type: 'login', html: res };
@@ -273,17 +127,9 @@ async function loadLoginPage ( state: PageState ) {
         var nickname = nick.value;
         var password = pass.value;
 
-        var res = await sockets.request<API.RequestLogin>( {
-            type: 'login',
-            nickname: nickname,
-            password: password
-        } );
+        var res = await logIn( nickname, password );
 
         if ( res.result == 'ok' ) {
-            localStorage.setItem( 'session_key', res.sessionKey );
-            localStorage.setItem( 'nickname', nickname );
-            userNickname = nickname;
-            sessionKey = res.sessionKey;
             goToDevicesPage();
             loadCouldPreferences();
         }
@@ -452,10 +298,6 @@ function updateOptionsOverlay () {
     addAccent();
 }
 
-function isLoggedIn () {
-    return sessionKey != undefined;
-}
-
 async function goToDevicesPage () {
     if ( !isLoggedIn() ) {
         goToLoginPage();
@@ -520,6 +362,11 @@ async function loadDevicesPage ( state: PageState ) {
     var usercount = 0;
     var users: { [uid: number]: [HTMLElement, Text, HTMLElement] } = {};
     function addUser ( nick: string, location: string, uid: number, accent: string ) {
+        if ( users[ uid ] != undefined ) {
+            updateUser( uid, location, accent );
+            return;
+        }
+
         if ( nooneText != undefined ) {
             nooneText.remove();
             nooneText = undefined;
