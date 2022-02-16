@@ -362,6 +362,24 @@ const ApiHandlers: {
             accent: session.user.accent.Value,
             theme: session.user.theme
         };
+    } ),
+
+    'device-info': SessionHandler( async ( session, req, ws ) => {
+        var index = session.user.allowedDevices.findIndex( x => x.ID == req.deviceId );
+
+        if ( index == -1 ) {
+            return {
+                result: 'not found'
+            }
+        }
+        else {
+            var device = session.user.allowedDevices[ index ];
+            return {
+                result: 'ok',
+                name: device.name,
+                controls: device.controls
+            }
+        }
     } )
 };
 

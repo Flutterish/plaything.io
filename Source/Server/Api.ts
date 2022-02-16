@@ -1,3 +1,4 @@
+import type { Control } from "./Device";
 import type { SessionKey } from "./Session";
 
 export type Uncertain<T> = { [K in keyof Omit<T, 'type'>]: K extends 'id' ? T[K] : T[K] | undefined };
@@ -15,6 +16,7 @@ export type RequestResponseMap = {
         : Req extends API.RequestLogout['type'] ? API.ResponseLogout
         : Req extends API.RequestSessionReconnect['type'] ? API.ResponseSessionExists
         : Req extends API.SubscribeDevices['type'] ? API.ResponseSubscribeDevices
+        : Req extends API.RequestDeviceInfo['type'] ? API.ResponseDeviceInfo
         : Req extends API.SubscribeUsers['type'] ? API.ResponseSubscribeUsers
         : Req extends API.RequestLoadPreferences['type'] ? API.ResponseLoadPreferences
         : Req extends API.RequestSavePreferences['type'] ? API.Ack | API.InvalidSession
@@ -49,6 +51,10 @@ export namespace API {
     export type RequestLoadPreferences = {
         type: 'load-preferences'
     } & SessionRequest
+    export type RequestDeviceInfo = {
+        type: 'device-info',
+        deviceId: number
+    } & SessionRequest
     export type SubscribeDevices = {
         type: 'subscibe-devices'
     } & SessionRequest
@@ -61,7 +67,8 @@ export namespace API {
 
     type RequestTypes = 
         RequestLoginInfo | RequestServerInfo 
-        | RequestLogin | RequestLogout | RequestSessionReconnect 
+        | RequestLogin | RequestLogout | RequestSessionReconnect
+        | RequestDeviceInfo 
         | SubscribeDevices | SubscribeUsers 
         | RequestSavePreferences | RequestLoadPreferences;
 
@@ -88,6 +95,13 @@ export namespace API {
     export type ResponseSessionExists = {
         value: boolean
     }
+    export type ResponseDeviceInfo = ({
+        result: 'ok',
+        name: string,
+        controls: Control.Any[]
+    } | {
+        result: 'not found'
+    }) | InvalidSession
     export type ResponseSubscribeDevices = {
         result: 'ok',
         devices: { name: string, id: number }[]

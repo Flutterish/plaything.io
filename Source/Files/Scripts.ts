@@ -1,7 +1,9 @@
 import type { API } from '@Server/Api'
+import type { Control } from '@Server/Device';
 import type { Theme } from '@Server/Themes'
 import { Reactive } from './Reactive.js';
 import { sockets, logIn, logOut, isLoggedIn, heartbeatHandlers, request, cachedGet, userNickname, Reconnected, Connected, LoggedOut, ComponentName } from './Session.js';
+import { computeSharedControlLayout } from './ShareLayout.js';
 
 LoggedOut.push( goToLoginPage );
 Connected.push( goToLoginPage );
@@ -312,6 +314,8 @@ async function onMainBody () {
     devicesPage = undefined;
     controlPage?.remove();
     controlPage = undefined;
+    controlPageRemoved?.();
+    controlPageRemoved = undefined;
 }
 function destroyMain () {
     if ( mainBody != undefined ) {
@@ -431,6 +435,7 @@ async function loadDevicesPage ( state: PageState ) {
     mainBody!.appendChild( devicesPage );
 }
 
+var controlPageRemoved: (() => any) | undefined = undefined;
 var controlPage: HTMLElement | undefined = undefined;
 async function goToControlPage ( id: number ) {
     if ( !isLoggedIn() ) {
@@ -450,6 +455,75 @@ async function loadControlPage ( state: PageState ) {
 
     var share = template.querySelector( '.share' ) as HTMLElement;
     var controls = template.querySelector( '.control-list' ) as HTMLElement;
+
+    var xOffset = 0;
+    var yOffset = 0;
+    var normalWidth = 0;
+    var normalHeight = 0;
+
+    var repositionControls: (() => any) | undefined = undefined;
+    var repositionCursors: (() => any) | undefined = undefined;
+    function windowResized () {
+        repositionControls?.();
+        repositionCursors?.();
+    }
+
+    window.addEventListener( 'resize', windowResized );
+    controlPageRemoved = () => window.removeEventListener( 'resize', windowResized );
+
+    sockets.request<API.RequestDeviceInfo>( { type: 'device-info', deviceId: id } ).then( res => {
+        if ( res.result == 'not found' ) {
+            console.error( 'Requested device info was not found' );
+            return;
+        }
+
+        const controls = res.controls;
+        const boundsByControl = new Map<Control.Any, HTMLElement>();
+        for ( const control of controls ) {
+            let itemBounds = document.createElement( 'div' );
+            boundsByControl.set( control, itemBounds );
+            share.appendChild( itemBounds );
+        }
+
+        var bounds = document.createElement( 'div' );
+        bounds.style.position = 'absolute';
+        bounds.style.backgroundColor = 'green';
+        bounds.style.opacity = '10%';
+        share.appendChild( bounds );
+
+        function updateLayout () {
+            var width = share.clientWidth - 32;
+            var height = window.innerHeight - 50 - 32;
+            
+            var layout = computeSharedControlLayout( {
+                width: width,
+                height: height
+            }, controls );
+
+            normalWidth = layout.normalWidth;
+            normalHeight = layout.normalHeight;
+            xOffset = 16 + ( width - layout.width ) / 2;
+            yOffset = 16;
+    
+            bounds.style.width = layout.width + 'px';
+            bounds.style.height = layout.height + 'px';
+            bounds.style.left = xOffset + 'px';
+            bounds.style.top = yOffset + 'px';
+        
+            for ( const control of layout.items ) {
+                let itemBounds = boundsByControl.get( control.control )!;
+                itemBounds.style.position = 'absolute';
+                itemBounds.style.backgroundColor = 'red';
+                itemBounds.style.width = control.width + 'px';
+                itemBounds.style.height = control.height + 'px';
+                itemBounds.style.left = 16 + control.x + 'px';
+                itemBounds.style.top = 16 + control.y + 'px';
+            }
+        }
+
+        updateLayout();
+        repositionControls = updateLayout;
+    } );
 
     mainBody!.appendChild( controlPage );
 }
