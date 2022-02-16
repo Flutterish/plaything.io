@@ -184,13 +184,13 @@ async function processRequest (req: (API.Request & { id?: number }) | API.Messag
 const ApiHandlers: {
     [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>, ws?: WebSocket) => Promise<RequestResponseMap[Key]>
 } = {
-    'serverInformation': async req => {
+    'server-information': async req => {
         return {
             name: serverName
         };
     },
 
-    'loginInformation': async req => {
+    'login-information': async req => {
         return { anonymousAllowed: AllowAnonymousAccess };
     },
 
@@ -278,7 +278,7 @@ const ApiHandlers: {
         }
     },
 
-    'subscibeDevices': SessionHandler( async ( session, req, ws ) => {
+    'subscibe-devices': SessionHandler( async ( session, req, ws ) => {
         return {
             result: 'ok',
             devices: session.user.allowedDevices.map( x => x.name )
@@ -286,7 +286,7 @@ const ApiHandlers: {
         // TODO heartbeat-devices when this goes reactive
     } ),
 
-    'subscibeUsers': SessionHandler( async ( session, req, ws ) => {
+    'subscibe-users': SessionHandler( async ( session, req, ws ) => {
         if ( ws != undefined && !wsUserSubscriptions.has( ws ) ) {
             wsUserSubscriptions.set( ws, CreateSessionSubscription<UserSession>(
                 loginSessions,

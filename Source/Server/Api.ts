@@ -25,10 +25,10 @@ export namespace API {
     export type InvalidSession = { result: 'session not found' }
     export type SessionRequest = { sessionKey?: SessionKey }
     export type RequestLoginInfo = {
-        type: 'loginInformation'
+        type: 'login-information'
     }
     export type RequestServerInfo = {
-        type: 'serverInformation'
+        type: 'server-information'
     }
     export type RequestLogin = {
         type: 'login',
@@ -50,10 +50,10 @@ export namespace API {
         type: 'load-preferences'
     } & SessionRequest
     export type SubscribeDevices = {
-        type: 'subscibeDevices'
+        type: 'subscibe-devices'
     } & SessionRequest
     export type SubscribeUsers = {
-        type: 'subscibeUsers'
+        type: 'subscibe-users'
     } & SessionRequest
     export type AliveAck = {
         type: 'alive'

@@ -68,8 +68,8 @@ export const sockets = Workers.get<API.Request, API.Response, API.Message, Socke
 } ).mapRequests<'type', API.Request, {[Key in keyof RequestResponseMap]: Exclude<RequestResponseMap[Key], API.InvalidSession>}>();
 
 export type RequestCache = {
-    loginInformation: API.ResponseLoginInfo,
-    serverInformation: API.ResponseServerInfo
+    'login-information': API.ResponseLoginInfo,
+    'server-information': API.ResponseServerInfo
 };
 const cache: Partial<RequestCache> = {};
 export async function cachedGet<T extends keyof RequestCache> ( type: T ): Promise<RequestResponseMap[T]> {

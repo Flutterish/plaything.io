@@ -195,11 +195,11 @@ async function loadLoginPage ( state: PageState ) {
     loginPage = template.childNodes[0] as HTMLElement;
     document.body.prepend( loginPage );
 
-    cachedGet( 'serverInformation' ).then( res => {
+    cachedGet( 'server-information' ).then( res => {
         serverName.innerText = 'plaything.io / ' + res.name;
     } );
 
-    cachedGet( 'loginInformation' ).then( info => {
+    cachedGet( 'login-information' ).then( info => {
         if ( info.anonymousAllowed ) {
             passLabel.setAttribute( 'title', 'Password is not required. You can log in anonymously with a blank password' );
         }
@@ -270,7 +270,7 @@ async function loadMainBody ( html: string ) {
     var logout = mainBody.querySelector( '#logout' ) as HTMLButtonElement;
 
     nickname.innerText = userNickname!;
-    cachedGet( 'serverInformation' ).then( res => {
+    cachedGet( 'server-information' ).then( res => {
         servername.innerText = res.name;
     } );
     logout.addEventListener( 'click', () => logOut() );
@@ -309,7 +309,7 @@ async function loadDevicesPage ( state: PageState ) {
     var listing = devicesPage.querySelector( '.listing' ) as HTMLElement;
     var usersList = devicesPage.querySelector( '#users' ) as HTMLElement;
 
-    sockets.request<API.SubscribeDevices>( { type: 'subscibeDevices' } ).then( res => {
+    sockets.request<API.SubscribeDevices>( { type: 'subscibe-devices' } ).then( res => {
         for ( const device of res.devices ) {
             var div = document.createElement( 'div' );
             div.classList.add( 'device' );
@@ -382,7 +382,7 @@ async function loadDevicesPage ( state: PageState ) {
             removeUser( e.uid );
         }
     };
-    sockets.request<API.SubscribeUsers>( { type: 'subscibeUsers' } ).then( res => {
+    sockets.request<API.SubscribeUsers>( { type: 'subscibe-users' } ).then( res => {
         for ( const user of res.users ) {
             addUser( user.nickname, user.location, user.uid, user.accent );
         }
