@@ -15,9 +15,11 @@ export type Room = {
     getSession: (user: User) => RoomSession | undefined
 } & SubscribeablePool<RoomSession>
 
+export type CursorType = 'default' | 'pointer';
 export type RoomSession = {
     user: User,
     position: Reactive<[x: number, y: number]>,
+    cursorStyle: Reactive<CursorType>,
     lastActive: number,
     isActive: Reactive<boolean>,
     isUserActive: Reactive<boolean>
@@ -38,6 +40,7 @@ export function CreateRoom ( name: string, controls: Control.Any[] ): Room & { a
                 roomSessionsByUser[ user.UID ] = {
                     user: user,
                     position: new Reactive<[x: number, y: number]>([0, 0]),
+                    cursorStyle: new Reactive<CursorType>( 'default' ),
                     lastActive: Date.now(),
                     isActive: new Reactive<boolean>( true ),
                     isUserActive: new Reactive<boolean>( user.isActive )
@@ -67,10 +70,17 @@ export function CreateRoom ( name: string, controls: Control.Any[] ): Room & { a
         entryRemoved: entryRemovedEvent,
         handleUserMovedPointer: (user, req) => {
             var session = roomSessionsByUser[ user.UID ];
-            if ( session != undefined && typeof req.x === 'number' && typeof req.y === 'number' ) {
+            if ( session != undefined ) {
                 session.lastActive = Date.now();
                 session.isActive.Value = true;
+            }
+
+            if ( typeof req.x === 'number' && typeof req.y === 'number' ) {
                 session.position.Value = [req.x, req.y];
+            }
+
+            if ( req.cursorStyle == 'default' || req.cursorStyle == 'pointer' ) {
+                session.cursorStyle.Value = req.cursorStyle;
             }
         },
         handleUserModifiedControl: (user, req) => {

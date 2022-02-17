@@ -636,6 +636,15 @@ async function loadControlPage ( state: PageState ) {
             cursor.style.setProperty('--user-color', user.accent );
             var nametag = cursor.querySelector( '.cursor-name' ) as HTMLElement;
             nametag.innerText = user.nickname;
+            var icon = cursor.querySelector( 'i' ) as HTMLElement;
+
+            icon.classList.remove( 'fa-arrow-pointer', 'fa-hand-pointer' );
+            if ( user.pointer == 'default' ) {
+                icon.classList.add( 'fa-arrow-pointer' );
+            }
+            else if ( user.pointer == 'pointer' ) {
+                icon.classList.add( 'fa-hand-pointer' );
+            }
             layoutUser( user.uid );
         }
         function removeUser ( uid: number ) {
@@ -668,7 +677,13 @@ async function loadControlPage ( state: PageState ) {
 
         share.addEventListener( 'mousemove', e => {
             var sharebounds = share.getBoundingClientRect();
-            sockets.message<API.MessageMovedPointer>( { type: 'moved-pointer', x: (e.clientX - sharebounds.x) / normalWidth, y: (e.clientY - sharebounds.y) / normalHeight } );
+            var style = getComputedStyle(e.target as HTMLElement).cursor || 'default';
+            sockets.message<API.MessageMovedPointer>( { 
+                type: 'moved-pointer', 
+                cursorStyle: (style == 'grab' || style == 'pointer') ? 'pointer' : 'default', 
+                x: (e.clientX - sharebounds.x) / normalWidth, 
+                y: (e.clientY - sharebounds.y) / normalHeight 
+            } );
         } );
     } );
 

@@ -1,4 +1,5 @@
 import type { Control } from "./Device";
+import { CursorType } from "./Room";
 import type { SessionKey } from "./Session";
 
 export type Uncertain<T> = { [K in keyof Omit<T, 'type'>]: K extends 'id' ? T[K] : T[K] | undefined };
@@ -85,7 +86,8 @@ export namespace API {
     export type MessageMovedPointer = {
         type: 'moved-pointer',
         x: number,
-        y: number
+        y: number,
+        cursorStyle?: CursorType
     } & SessionRequest
     export type MessageModifiedControl = {
         type: 'modified-control',
@@ -123,7 +125,7 @@ export namespace API {
     }) | InvalidSession
     export type ResponseJoinControlRoom = ({
         result: 'ok'
-        users: { uid: number, nickname: string, accent: string, x: number, y: number }[]
+        users: ControlRoomUser[]
     } | {
         result: 'device not found' | 'already in a different room' | 'cant join room'
     }) | InvalidSession
@@ -156,7 +158,7 @@ export namespace API {
         kind: 'removed',
         uid: number
     })
-    export type ControlRoomUser = { uid: number, nickname: string, accent: string, x: number, y: number }
+    export type ControlRoomUser = { uid: number, nickname: string, accent: string, x: number, y: number, pointer: CursorType }
     export type HeartbeatControlRoomUpdate = {
         type: 'hearthbeat-control-room'
     } & ({

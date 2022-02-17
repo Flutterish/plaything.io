@@ -427,7 +427,7 @@ const ApiHandlers: {
                         ws!.send( JSON.stringify( {
                             type: 'hearthbeat-control-room',
                             kind: kind,
-                            user: { uid: user.UID, nickname: user.nickname, accent: user.accent.Value, x: session.position.Value[0], y: session.position.Value[1] }
+                            user: { uid: user.UID, nickname: user.nickname, accent: user.accent.Value, x: session.position.Value[0], y: session.position.Value[1], pointer: session.cursorStyle.Value }
                         } as API.HeartbeatControlRoomUpdate ) )
                     }
 
@@ -445,13 +445,16 @@ const ApiHandlers: {
                     ).ReactTo(
                         x => room.getSession( x )!.position,
                         (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
+                    ).ReactTo(
+                        x => room.getSession( x )!.cursorStyle,
+                        (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
                     ) );
                 }
     
                 return {
                     result: 'ok',
                     users: room.getSessions().filter( x => x.user != session.user && x.isActive.Value )
-                        .map( x => ({ uid: x.user.UID, nickname: x.user.nickname, accent: x.user.accent.Value, x: x.position.Value[0], y: x.position.Value[1] }) )
+                        .map( x => ({ uid: x.user.UID, nickname: x.user.nickname, accent: x.user.accent.Value, x: x.position.Value[0], y: x.position.Value[1], pointer: x.cursorStyle.Value }) )
                 }
             }
             else {
