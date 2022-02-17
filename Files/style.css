@@ -558,6 +558,7 @@ select {
 
 #cursors {
     pointer-events: none;
+    overflow: hidden;
 }
 
 #control-list > * {
@@ -686,8 +687,6 @@ select {
 
 .cursor {
     position: absolute;
-    bottom: 30%;
-    left: 24%;
 
     font-size: 140%;
     /* --user-color: var(--colorRed); */
@@ -718,8 +717,4 @@ select {
 .share {
     width: 100%;
     height: 100%;
-}
-
-.content:has(.share) {
-    padding: 0;
 }

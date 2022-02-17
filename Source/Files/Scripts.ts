@@ -453,6 +453,7 @@ async function loadControlPage ( state: PageState ) {
 
     var share = template.querySelector( '.share' ) as HTMLElement;
     var controlList = template.querySelector( '#control-list' ) as HTMLElement;
+    var cursors = template.querySelector( '#cursors' ) as HTMLElement;
 
     var xOffset = 0;
     var yOffset = 0;
@@ -497,7 +498,6 @@ async function loadControlPage ( state: PageState ) {
 
             return button;
         }
-
         function createSlider ( control: Control.Slider ) {
             var slider = document.createElement( 'div' );
             slider.classList.add( 'control-slider' );
@@ -582,6 +582,80 @@ async function loadControlPage ( state: PageState ) {
         updateLayout();
         flexFont( share );
         repositionControls = updateLayout;
+    } );
+    sockets.request<API.RequestJoinControlRoom>( { type: 'join-control', deviceId: id } ).then( res => {
+        if ( res.result != 'ok' ) {
+            return;
+        }
+        
+        const cursorsByUser: { [uid: number]: [el: HTMLElement, user: API.ControlRoomUser] } = {};
+        function layoutUser ( uid: number ) {
+            var data = cursorsByUser[ uid ];
+            var cursor = data[0];
+            var x = data[1].x;
+            var y = data[1].y;
+
+            cursor.style.position = 'absolute';
+            cursor.style.top = y * normalHeight + 'px';
+            cursor.style.left = x * normalWidth + 'px';
+        }
+
+        function addUser ( user: API.ControlRoomUser ) {
+            var cursor = document.createElement( 'div' );
+            cursor.classList.add( 'cursor' );
+            var icon = document.createElement( 'i' );
+            icon.classList.add( 'fa-solid' );
+            icon.classList.add( 'fa-arrow-pointer' );
+            cursor.appendChild( icon );
+            var nametag = document.createElement( 'div' );
+            nametag.classList.add( 'cursor-name' );
+            cursor.appendChild( nametag );
+            cursors.appendChild( cursor );
+            cursorsByUser[ user.uid ] = [cursor, user];
+
+            updateUser( user );
+        }
+        function updateUser ( user: API.ControlRoomUser ) {
+            var data = cursorsByUser[ user.uid ];
+            data[1] = user;
+            var cursor = data[0];
+            cursor.style.setProperty('--user-color', user.accent );
+            var nametag = cursor.querySelector( '.cursor-name' ) as HTMLElement;
+            nametag.innerText = user.nickname;
+            layoutUser( user.uid );
+        }
+        function removeUser ( uid: number ) {
+            var data = cursorsByUser[ uid ];
+            data[0].remove();
+            delete cursorsByUser[ uid ];
+        }
+
+        repositionCursors = () => {
+            for ( const key in cursorsByUser ) {
+                layoutUser( key as unknown as number );
+            }
+        };
+
+        for ( const user of res.users ) {
+            addUser( user );
+        }
+        
+        heartbeatHandlers.roomUpdate = res => {
+            if ( res.kind == 'user-joined' ) {
+                addUser( res.user );
+            }
+            else if ( res.kind == 'user-updated' ) {
+                updateUser( res.user );
+            }
+            else if ( res.kind == 'user-left' ) {
+                removeUser( res.uid );
+            }
+        };
+
+        share.addEventListener( 'mousemove', e => {
+            var sharebounds = share.getBoundingClientRect();
+            sockets.message<API.MessageMovedPointer>( { type: 'moved-pointer', x: (e.clientX - sharebounds.x) / normalWidth, y: (e.clientY - sharebounds.y) / normalHeight } );
+        } );
     } );
 
     mainBody!.appendChild( controlPage );

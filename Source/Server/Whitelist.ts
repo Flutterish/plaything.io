@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { Device } from "./Device";
 import { DeviceList } from "./DeviceList.js";
 import { Reactive } from "./Reactive.js";
+import { Room } from "./Room";
 
 var nextUID = 0;
 function makeUserSync ( nick: string, pass: string, devices: Device[] = [] ): User {
@@ -13,6 +14,7 @@ function makeUserSync ( nick: string, pass: string, devices: Device[] = [] ): Us
         accent: new Reactive<string>( '#ff79c6' ),
         lastActive: 0,
         isActive: new Reactive<boolean>( false ),
+        room: new Reactive<Room | undefined>( undefined ),
         UID: nextUID++
     };
 }
@@ -41,6 +43,7 @@ export function MakeAnonUser ( nickname: string ): User {
         accent: new Reactive<string>( '#ff79c6' ),
         lastActive: 0,
         isActive: new Reactive<boolean>( false ),
+        room: new Reactive<Room | undefined>( undefined ),
         UID: nextUID++
     };
 }

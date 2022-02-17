@@ -2,6 +2,7 @@ import { Device } from "./Device";
 import { CreateEvent } from "./Events.js";
 import { Reactive, CreateReactiveAggregate, ReactiveAggregate } from "./Reactive.js";
 import { SubscribeablePool } from './Subscription';
+import { Room } from './Room';
 
 export type User = {
     nickname: string,
@@ -11,6 +12,7 @@ export type User = {
     allowedDevices: Device[],
     accent: Reactive<string>,
     theme?: string,
+    room: Reactive<Room | undefined>,
 
     lastActive: number,
     isActive: Reactive<boolean>

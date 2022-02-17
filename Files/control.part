@@ -1,13 +1,6 @@
 <div class="content">
     <div class="share">
         <div id="control-list"></div>
-        <div id="cursors">
-            <!-- <div class="cursor" style="--user-color: var(--colorRed)">
-                <i class="fa-solid fa-arrow-pointer"></i>
-                <div class="cursor-name">
-                    Ifnis
-                </div>
-            </div> -->
-        </div>
+        <div id="cursors"></div>
     </div>
 </div>

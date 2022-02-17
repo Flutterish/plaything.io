@@ -6,7 +6,8 @@ import { API, RequestResponseMap, Uncertain } from './Api';
 import { FreeLogFile, Log, LogConnection, LogUser, LogWithSource } from './Logger.js';
 import { User, CreateUserPool, UserSession, CreateActiveUserPool } from './User.js';
 import { SessionKey } from './Session';
-import { PoolSubscription, CreatePoolSubscription } from './Subscription.js';
+import { PoolSubscription, CreatePoolSubscription, SubscribeablePool } from './Subscription.js';
+import { Room, CreateRoom, RoomSession } from './Room.js';
 
 const app = express();
 const port = 8080;
@@ -17,6 +18,8 @@ const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
 const loggedInUsers = CreateUserPool( loginSessions );
 // ones with at least one active session
 const activeUsers = CreateActiveUserPool( loginSessions );
+
+const roomsByDeviceId: { [id: number]: Room & { activePool: SubscribeablePool<User> } } = {};
 
 activeUsers.entryAdded.addEventListener( user => {
     user.lastActive = Date.now();
@@ -34,6 +37,7 @@ activeUsers.entryRemoved.addEventListener( user => {
 // TODO we will need to abstract this away
 const wsSessions = new Map<WebSocket, SessionKey>();
 const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
+const wsRoomSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
@@ -114,6 +118,8 @@ wss.addListener( 'connection', (ws, req) => {
         wsSessions.delete( ws );
         wsUserSubscriptions.get( ws )?.unsubscribe();
         wsUserSubscriptions.delete( ws );
+        wsRoomSubscriptions.get( ws )?.unsubscribe();
+        wsRoomSubscriptions.delete( ws );
         FreeLogFile( address );
     } );
     ws.addEventListener( 'error', err => {
@@ -318,7 +324,7 @@ const ApiHandlers: {
                 ws!.send( JSON.stringify( {
                     type: 'heartbeat-users',
                     kind: kind,
-                    user: { uid: user.UID, nickname: user.nickname, location: serverName, accent: user.accent.Value }
+                    user: { uid: user.UID, nickname: user.nickname, location: user.room.Value?.name ?? serverName, accent: user.accent.Value }
                 } as API.HeartbeatUsers ) );
             }
 
@@ -332,17 +338,19 @@ const ApiHandlers: {
 
             wsUserSubscriptions.set( ws, CreatePoolSubscription<User>(
                 activeUsers,
-                ( user, scan ) => { if ( !scan ) addOrUpdate( user, 'added' ) },
-                ( user ) => remove( user )
+                ( user, scan ) => { if ( !scan && user != session.user ) addOrUpdate( user, 'added' ) },
+                ( user ) => { if ( user != session.user ) remove( user ) }
             ).ReactTo( user => user.accent, ( user, value ) => {
-                addOrUpdate( user, 'updated' )
+                if ( user != session.user ) addOrUpdate( user, 'updated' )
+            } ).ReactTo( user => user.room, ( user, value ) => {
+                if ( user != session.user ) addOrUpdate( user, 'updated' )
             } ) );
         }
 
         return {
             result: 'ok',
             users: activeUsers.getValues().filter( x => x != session.user )
-                .map( x => ({ nickname: x.nickname, location: serverName, uid: x.UID, accent: x.accent.Value }) )   
+                .map( x => ({ nickname: x.nickname, location: x.room.Value?.name ?? serverName, uid: x.UID, accent: x.accent.Value }) )   
         }
     } ),
 
@@ -380,6 +388,77 @@ const ApiHandlers: {
                 controls: device.controls
             }
         }
+    } ),
+
+    'join-control': SessionHandler( async ( session, req, ws ) => {
+        var index = session.user.allowedDevices.findIndex( x => x.ID == req.deviceId );
+        if ( index == -1 ) {
+            return {
+                result: 'device not found'
+            }
+        }
+        else {
+            var device = session.user.allowedDevices[ index ];
+            var room = roomsByDeviceId[ device.ID ];
+            if ( room == undefined ) {
+                roomsByDeviceId[ device.ID ] = room = CreateRoom( device.name, device.controls );
+
+                room.entryRemoved.addEventListener( () => {
+                    if ( room.getValues().length == 0 ) {
+                        delete roomsByDeviceId[ device.ID ];
+                    }
+                } );
+            }
+
+            if ( session.user.room.Value != undefined && session.user.room.Value != room ) {
+                session.user.room.Value.leave( session.user );
+                session.user.room.Value = undefined;
+            }
+
+            if ( session.user.room.Value == room || room.join( session.user ) ) {
+                session.user.room.Value = room;
+                if ( ws != undefined ) {
+                    wsRoomSubscriptions.get( ws )?.unsubscribe();
+                    wsRoomSubscriptions.delete( ws );
+
+                    function joinOrUpdate ( user: User, kind: 'user-joined' | 'user-updated' ) {
+                        var session = room.getSession( user )!;
+                        ws!.send( JSON.stringify( {
+                            type: 'hearthbeat-control-room',
+                            kind: kind,
+                            user: { uid: user.UID, nickname: user.nickname, accent: user.accent.Value, x: session.position.Value[0], y: session.position.Value[1] }
+                        } as API.HeartbeatControlRoomUpdate ) )
+                    }
+
+                    wsRoomSubscriptions.set( ws, CreatePoolSubscription( 
+                        room.activePool,
+                        (user, scan) => { if ( !scan && user != session.user ) joinOrUpdate( user, 'user-joined' ) },
+                        user => { if ( user != session.user ) ws.send( JSON.stringify( {
+                            type: 'hearthbeat-control-room',
+                            kind: 'user-left',
+                            uid: user.UID
+                        } as API.HeartbeatControlRoomUpdate ) ) }
+                    ).ReactTo( 
+                        x => x.accent, 
+                        (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
+                    ).ReactTo(
+                        x => room.getSession( x )!.position,
+                        (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
+                    ) );
+                }
+    
+                return {
+                    result: 'ok',
+                    users: room.getSessions().filter( x => x.user != session.user && x.isActive.Value )
+                        .map( x => ({ uid: x.user.UID, nickname: x.user.nickname, accent: x.user.accent.Value, x: x.position.Value[0], y: x.position.Value[1] }) )
+                }
+            }
+            else {
+                return {
+                    result: 'cant join room'
+                }
+            }
+        }
     } )
 };
 
@@ -395,8 +474,22 @@ function SessionHandler<Treq extends API.SessionRequest, Tres> ( code: (session:
     }
 }
 
-const MessageHandlers : {
-    [Key in API.Message['type']]: (req: Uncertain<Extract<API.Message, { type: Key }>>, ws?: WebSocket) => Promise<void>
+const MessageHandlers: {
+    [Key in API.Message['type']]: (req: Uncertain<Extract<API.Message, { type: Key }>>, ws?: WebSocket) => Promise<unknown>
 } = {
-    'alive': async (req, ws) => { }
+    'alive': async (req, ws) => { },
+    'moved-pointer': SessionHandler( async ( session, req, ws ) => {
+        var room = session.user.room.Value;
+        
+        if ( room != undefined ) {
+            room.handleUserMovedPointer( session.user, req );
+        }
+    } ),
+    'modified-control': SessionHandler( async ( session, req, ws ) => {
+        var room = session.user.room.Value;
+        
+        if ( room != undefined ) {
+            room.handleUserModifiedControl( session.user, req );
+        }
+    } ),
 };

@@ -19,6 +19,7 @@ export type RequestResponseMap = {
         : Req extends API.RequestDeviceInfo['type'] ? API.ResponseDeviceInfo
         : Req extends API.SubscribeUsers['type'] ? API.ResponseSubscribeUsers
         : Req extends API.RequestLoadPreferences['type'] ? API.ResponseLoadPreferences
+        : Req extends API.RequestJoinControlRoom['type'] ? API.ResponseJoinControlRoom
         : Req extends API.RequestSavePreferences['type'] ? API.Ack | API.InvalidSession
         : API.Ack
 };
@@ -55,6 +56,10 @@ export namespace API {
         type: 'device-info',
         deviceId: number
     } & SessionRequest
+    export type RequestJoinControlRoom = {
+        type: 'join-control',
+        deviceId: number
+    } & SessionRequest
     export type SubscribeDevices = {
         type: 'subscibe-devices'
     } & SessionRequest
@@ -68,12 +73,23 @@ export namespace API {
     type RequestTypes = 
         RequestLoginInfo | RequestServerInfo 
         | RequestLogin | RequestLogout | RequestSessionReconnect
-        | RequestDeviceInfo 
+        | RequestDeviceInfo | RequestJoinControlRoom
         | SubscribeDevices | SubscribeUsers 
         | RequestSavePreferences | RequestLoadPreferences;
 
     export type Request = Extract<RequestTypes, {type: string}>
-    type MessageTypes = AliveAck
+    
+    export type MessageMovedPointer = {
+        type: 'moved-pointer',
+        x: number,
+        y: number
+    } & SessionRequest
+    export type MessageModifiedControl = {
+        type: 'modified-control',
+        controlId: number,
+        state: any
+    } & SessionRequest
+    type MessageTypes = AliveAck | MessageMovedPointer | MessageModifiedControl
     export type Message = Extract<MessageTypes, {type: string}>
 
     export type ResponseLoginInfo = {
@@ -101,6 +117,12 @@ export namespace API {
         controls: Control.Any[]
     } | {
         result: 'not found'
+    }) | InvalidSession
+    export type ResponseJoinControlRoom = ({
+        result: 'ok'
+        users: { uid: number, nickname: string, accent: string, x: number, y: number }[]
+    } | {
+        result: 'device not found' | 'already in a different room' | 'cant join room'
     }) | InvalidSession
     export type ResponseSubscribeDevices = {
         result: 'ok',
@@ -131,6 +153,20 @@ export namespace API {
         kind: 'removed',
         uid: number
     })
-    type HeartbeatTypes = HeartbeatUsers
+    export type ControlRoomUser = { uid: number, nickname: string, accent: string, x: number, y: number }
+    export type HeartbeatControlRoomUpdate = {
+        type: 'hearthbeat-control-room'
+    } & ({
+        kind: 'user-joined' | 'user-updated',
+        user: ControlRoomUser,
+    } | {
+        kind: 'user-left',
+        uid: number
+    } | {
+        kind: 'control-modified',
+        controlId: number,
+        state: any
+    })
+    type HeartbeatTypes = HeartbeatUsers | HeartbeatControlRoomUpdate
     export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>
 };

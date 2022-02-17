@@ -1,4 +1,6 @@
+import { CreateEvent } from "./Events.js";
 import { Reactive } from "./Reactive.js";
+import { HasUserActivity } from "./User.js";
 
 export type PoolSubscription<Tsession> = {
     unsubscribe: () => any,
