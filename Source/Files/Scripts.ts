@@ -9,9 +9,7 @@ LoggedOut.push( goToLoginPage );
 Connected.push( goToLoginPage );
 Reconnected.push( () => {
     loadCouldPreferences();
-    if ( loginPage != undefined ) {
-        goToDevicesPage();
-    }
+    goToDevicesPage();
 } );
 
 function flexFont ( parent: HTMLElement ) {
