@@ -93,8 +93,8 @@ export namespace API {
         type: 'modified-control',
         controlId: number,
         state?: any,
-        hovered: boolean,
-        active: boolean
+        hovered?: boolean,
+        active?: boolean
     } & SessionRequest
     type MessageTypes = AliveAck | MessageMovedPointer | MessageModifiedControl | MessageLeaveRoom
     export type Message = Extract<MessageTypes, {type: string}>
@@ -121,7 +121,8 @@ export namespace API {
     export type ResponseDeviceInfo = ({
         result: 'ok',
         name: string,
-        controls: Control.Any[]
+        controls: Control.Any[],
+        values: any[]
     } | {
         result: 'not found'
     }) | InvalidSession

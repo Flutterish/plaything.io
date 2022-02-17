@@ -46,7 +46,9 @@ export class ButtonInstance extends ControlInstance<Control.Button, boolean> {
 export class SliderInstance extends ControlInstance<Control.Slider, number> {
     TrySet ( value: any ) {
         if ( typeof value === 'number' ) {
-            this.State.Value = value;
+            var from = Math.min( ...this.Prototype.range );
+            var to = Math.max( ...this.Prototype.range );
+            this.State.Value = Math.max( Math.min( value, to ), from );
         }
     }
 };

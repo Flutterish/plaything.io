@@ -152,7 +152,7 @@ function createControlInstances ( controls: AnyControlInstance[] ) {
             var oldTarget = userTargets.get( user );
             var newTarget = req?.controlId == undefined ? undefined : controlsById[ req.controlId ];
             
-            if ( req?.active ) {
+            if ( req?.active == true ) {
                 oldTarget?.activeBy.delete( user );
                 newTarget?.activeBy.add( user );
                 if ( newTarget != undefined ) {
@@ -162,15 +162,15 @@ function createControlInstances ( controls: AnyControlInstance[] ) {
                     userTargets.delete( user );
                 }
             }
-            else if ( oldTarget == newTarget ) {
+            else if ( req?.active == false && oldTarget == newTarget ) {
                 newTarget?.activeBy.delete( user );
                 userTargets.delete( user );
             }
 
-            if ( req?.hovered ) {
+            if ( req?.hovered == true ) {
                 newTarget?.hoveredBy.add( user );
             }
-            else {
+            else if ( req?.hovered == false ) {
                 newTarget?.hoveredBy.delete( user );
             }
 

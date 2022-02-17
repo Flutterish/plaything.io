@@ -390,7 +390,8 @@ const ApiHandlers: {
             return {
                 result: 'ok',
                 name: device.name,
-                controls: device.controls.map( x => x.Prototype )
+                controls: device.controls.map( x => x.Prototype ),
+                values: device.controls.map( x => x.State.Value )
             }
         }
     } ),
