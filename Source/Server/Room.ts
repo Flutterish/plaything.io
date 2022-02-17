@@ -152,15 +152,29 @@ function createControlInstances ( controls: AnyControlInstance[] ) {
             var oldTarget = userTargets.get( user );
             var newTarget = req?.controlId == undefined ? undefined : controlsById[ req.controlId ];
             
-            oldTarget?.activeBy.delete( user );
-            oldTarget?.hoveredBy.delete( user );
-            if ( req?.hovered )
-                newTarget?.hoveredBy.add( user );
-            if ( req?.active )
+            if ( req?.active ) {
+                oldTarget?.activeBy.delete( user );
                 newTarget?.activeBy.add( user );
+                if ( newTarget != undefined ) {
+                    userTargets.set( user, newTarget );
+                }
+                else {
+                    userTargets.delete( user );
+                }
+            }
+            else if ( oldTarget == newTarget ) {
+                newTarget?.activeBy.delete( user );
+                userTargets.delete( user );
+            }
+
+            if ( req?.hovered ) {
+                newTarget?.hoveredBy.add( user );
+            }
+            else {
+                newTarget?.hoveredBy.delete( user );
+            }
 
             if ( oldTarget != undefined ) {
-                oldTarget.isHovered.Value = oldTarget.hoveredBy.size != 0;
                 oldTarget.isActive.Value = oldTarget.activeBy.size != 0;
             }
             if ( newTarget != undefined ) {
@@ -168,13 +182,6 @@ function createControlInstances ( controls: AnyControlInstance[] ) {
                 newTarget.isActive.Value = newTarget.activeBy.size != 0;
 
                 newTarget.control.TrySet( req?.state );
-            }
-
-            if ( newTarget == undefined ) {
-                userTargets.delete( user );
-            }
-            else {
-                userTargets.set( user, newTarget );
             }
         }
     }

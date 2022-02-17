@@ -553,6 +553,8 @@ async function loadControlPage ( state: PageState ) {
         const controls = res.controls;
         const boundsByControl = new Map<Control.Any, HTMLElement>();
         const reactsById = new Map<number, HTMLElement>()
+        const activeById = new Map<number, boolean>()
+        const hoverById = new Map<number, boolean>()
         let i = 0;
         for ( const control of controls ) {
             const id = i;
@@ -563,22 +565,28 @@ async function loadControlPage ( state: PageState ) {
             boundsByControl.set( control, itemBounds );
             controlList.appendChild( itemBounds );
             var react = reactsById.get( id );
+            activeById.set( id, false );
+            hoverById.set( id, false );
 
-            const isHover = (e: HTMLElement) => e.parentElement!.querySelector(':hover') === e;
-            const isActive = (e: HTMLElement) => e.parentElement!.querySelector(':hover') === e;
-            
-            react?.addEventListener( 'mouseenter', e => {
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: isActive( react! ), hovered: true } );
+            react?.addEventListener( 'pointerenter', e => {
+                hoverById.set( id, true );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: activeById.get(id)!, hovered: true } );
             } );
-            react?.addEventListener( 'mouseleave', e => {
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: isActive( react! ), hovered: false } );
+            react?.addEventListener( 'pointerleave', e => {
+                hoverById.set( id, false );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: activeById.get(id)!, hovered: false } );
             } );
-            react?.addEventListener( 'mousedown', e => {
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: true, hovered: isHover( react! ) } );
+            function pointerUp () {
+                activeById.set( id, false );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: false, hovered: hoverById.get(id)! } );
+                window.removeEventListener( 'pointerup', pointerUp );
+            }
+            react?.addEventListener( 'pointerdown', e => {
+                activeById.set( id, true );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: true, hovered: hoverById.get(id)! } );
+                window.addEventListener( 'pointerup', pointerUp );
             } );
-            react?.addEventListener( 'mouseup', e => {
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: false, hovered: isHover( react! ) } );
-            } );
+            react?.addEventListener( 'dragend', pointerUp );
             i++;
         }
 
@@ -620,20 +628,22 @@ async function loadControlPage ( state: PageState ) {
         updateLayout();
         flexFont( share );
         repositionControls = updateLayout;
-        // TODO this should probably be done with bounding boxes and cursor states rather than server-side 'isHovered/isActive'
         controlUpdate = res => {
             var control = res.control;
             var item = reactsById.get( res.control.controlId );
 
             if ( item != undefined ) {
-                item.classList.remove( 'hover' );
-                item.classList.remove( 'active' );
-                
                 if ( control.active ) {
                     item.classList.add( 'active' );
+                    item.classList.remove( 'hover' );
                 }
                 else if ( control.hovered ) {
                     item.classList.add( 'hover' );
+                    item.classList.remove( 'active' );
+                }
+                else {
+                    item.classList.remove( 'active' );
+                    item.classList.remove( 'hover' );
                 }
             }
         };
@@ -719,7 +729,7 @@ async function loadControlPage ( state: PageState ) {
             }
         };
 
-        controlPage!.addEventListener( 'mousemove', e => {
+        controlPage!.addEventListener( 'pointermove', e => {
             var sharebounds = share.getBoundingClientRect();
             var style = getComputedStyle(e.target as HTMLElement).cursor || 'default';
             sockets.message<API.MessageMovedPointer>( { 
