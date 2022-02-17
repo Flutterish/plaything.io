@@ -79,6 +79,9 @@ export namespace API {
 
     export type Request = Extract<RequestTypes, {type: string}>
     
+    export type MessageLeaveRoom = {
+        type: 'leave-room'
+    } & SessionRequest
     export type MessageMovedPointer = {
         type: 'moved-pointer',
         x: number,
@@ -89,7 +92,7 @@ export namespace API {
         controlId: number,
         state: any
     } & SessionRequest
-    type MessageTypes = AliveAck | MessageMovedPointer | MessageModifiedControl
+    type MessageTypes = AliveAck | MessageMovedPointer | MessageModifiedControl | MessageLeaveRoom
     export type Message = Extract<MessageTypes, {type: string}>
 
     export type ResponseLoginInfo = {

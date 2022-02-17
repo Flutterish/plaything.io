@@ -467,7 +467,10 @@ async function loadControlPage ( state: PageState ) {
     }
 
     window.addEventListener( 'resize', windowResized );
-    controlPageRemoved = () => window.removeEventListener( 'resize', windowResized );
+    controlPageRemoved = () => {
+        window.removeEventListener( 'resize', windowResized );
+        sockets.message<API.MessageLeaveRoom>( { type: 'leave-room' } );
+    };
 
     sockets.request<API.RequestDeviceInfo>( { type: 'device-info', deviceId: id } ).then( res => {
         if ( res.result == 'not found' ) {

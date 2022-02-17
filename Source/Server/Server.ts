@@ -35,6 +35,7 @@ activeUsers.entryRemoved.addEventListener( user => {
 } );
 
 // TODO we will need to abstract this away
+// NOTE these also need to be connected to a session or a user because they can be cancelled by say leaving a room with a http request which wouldnt cancel it
 const wsSessions = new Map<WebSocket, SessionKey>();
 const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
 const wsRoomSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
@@ -478,6 +479,7 @@ const MessageHandlers: {
     [Key in API.Message['type']]: (req: Uncertain<Extract<API.Message, { type: Key }>>, ws?: WebSocket) => Promise<unknown>
 } = {
     'alive': async (req, ws) => { },
+
     'moved-pointer': SessionHandler( async ( session, req, ws ) => {
         var room = session.user.room.Value;
         
@@ -485,11 +487,25 @@ const MessageHandlers: {
             room.handleUserMovedPointer( session.user, req );
         }
     } ),
+
     'modified-control': SessionHandler( async ( session, req, ws ) => {
         var room = session.user.room.Value;
         
         if ( room != undefined ) {
             room.handleUserModifiedControl( session.user, req );
+        }
+    } ),
+
+    'leave-room': SessionHandler( async ( session, req, ws ) => {
+        var room = session.user.room.Value;
+        
+        if ( room != undefined ) {
+            room.leave( session.user );
+            session.user.room.Value = undefined;
+            if ( ws != undefined ) {
+                wsRoomSubscriptions.get( ws )?.unsubscribe();
+                wsRoomSubscriptions.delete( ws );
+            }
         }
     } ),
 };
