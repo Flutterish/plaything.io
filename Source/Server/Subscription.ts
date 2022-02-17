@@ -32,7 +32,7 @@ export function CreatePoolSubscription<Tsession> (
         removed( session );
     }
     
-    function unsubscribe () {
+    var unsubscribe = () => {
         sessionPool.entryAdded.removeEventListener( entryAdded );
         sessionPool.entryRemoved.removeEventListener( entryRemoved );
     }
@@ -74,14 +74,18 @@ export function CreatePoolSubscription<Tsession> (
                 selfAdded( s, true );
             }
 
+            var chainUnsubscribe = unsubscribe;
+            unsubscribe = () => {
+                for ( const k of reactives ) {
+                    k[1].RemoveEvents();
+                    k[1].UnbindAll();
+                }
+                reactives.clear();
+                chainUnsubscribe();
+            }
+
             return {
-                unsubscribe: () => {
-                    for ( const k of reactives ) {
-                        k[1].RemoveEvents();
-                    }
-                    reactives.clear();
-                    unsubscribe();
-                },
+                unsubscribe: unsubscribe,
                 ReactTo: reactToFactory()
             }
         };

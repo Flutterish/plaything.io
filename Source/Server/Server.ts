@@ -419,6 +419,12 @@ const ApiHandlers: {
             if ( session.user.room.Value != undefined && session.user.room.Value != room ) {
                 session.user.room.Value.leave( session.user );
                 session.user.room.Value = undefined;
+                if ( ws != undefined ) {
+                    wsRoomSubscriptions.get( ws )?.unsubscribe();
+                    wsRoomSubscriptions.delete( ws );
+                    wsControlSubscriptions.get( ws )?.unsubscribe();
+                    wsControlSubscriptions.delete( ws );
+                }
             }
 
             if ( session.user.room.Value == room || room.join( session.user ) ) {
