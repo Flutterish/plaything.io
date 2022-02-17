@@ -610,8 +610,8 @@ async function loadControlPage ( state: PageState ) {
             var y = data[1].y;
 
             cursor.style.position = 'absolute';
-            cursor.style.top = y * normalHeight + 'px';
-            cursor.style.left = x * normalWidth + 'px';
+            cursor.style.top = yOffset + y * normalHeight + 'px';
+            cursor.style.left = xOffset + x * normalWidth + 'px';
         }
 
         function addUser ( user: API.ControlRoomUser ) {
@@ -675,7 +675,7 @@ async function loadControlPage ( state: PageState ) {
             }
         };
 
-        share.addEventListener( 'mousemove', e => {
+        controlPage.addEventListener( 'mousemove', e => {
             var sharebounds = share.getBoundingClientRect();
             var style = getComputedStyle(e.target as HTMLElement).cursor || 'default';
             sockets.message<API.MessageMovedPointer>( { 

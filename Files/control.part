@@ -1,6 +1,6 @@
 <div class="content">
     <div class="share">
         <div id="control-list"></div>
-        <div id="cursors"></div>
     </div>
+    <div id="cursors"></div>
 </div>
