@@ -553,8 +553,6 @@ async function loadControlPage ( state: PageState ) {
         const controls = res.controls;
         const boundsByControl = new Map<Control.Any, HTMLElement>();
         const reactsById = new Map<number, HTMLElement>()
-        const activeById = new Map<number, boolean>()
-        const hoverById = new Map<number, boolean>()
         let i = 0;
         for ( const control of controls ) {
             const id = i;
@@ -565,25 +563,21 @@ async function loadControlPage ( state: PageState ) {
             boundsByControl.set( control, itemBounds );
             controlList.appendChild( itemBounds );
             var react = reactsById.get( id );
-            activeById.set( id, false );
-            hoverById.set( id, false );
+            let active = false;
+            let hover = false;
 
             react?.addEventListener( 'pointerenter', e => {
-                hoverById.set( id, true );
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: activeById.get(id)!, hovered: true } );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: active, hovered: hover = true } );
             } );
             react?.addEventListener( 'pointerleave', e => {
-                hoverById.set( id, false );
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: activeById.get(id)!, hovered: false } );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: active, hovered: hover = false } );
             } );
             function pointerUp () {
-                activeById.set( id, false );
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: false, hovered: hoverById.get(id)! } );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: active = false, hovered: hover } );
                 window.removeEventListener( 'pointerup', pointerUp );
             }
             react?.addEventListener( 'pointerdown', e => {
-                activeById.set( id, true );
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: true, hovered: hoverById.get(id)! } );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: active = true, hovered: hover } );
                 window.addEventListener( 'pointerup', pointerUp );
             } );
             react?.addEventListener( 'dragend', pointerUp );
