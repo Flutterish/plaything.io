@@ -297,6 +297,7 @@ async function loadMainBody ( html: string ) {
     cachedGet( 'server-information' ).then( res => {
         servername.innerText = res.name;
     } );
+    servername.addEventListener( 'click', () => goToDevicesPage() );
     logout.addEventListener( 'click', () => logOut() );
 
     document.body.prepend( mainBody );
@@ -452,6 +453,14 @@ async function loadControlPage ( state: PageState ) {
     var share = template.querySelector( '.share' ) as HTMLElement;
     var controlList = template.querySelector( '#control-list' ) as HTMLElement;
     var cursors = template.querySelector( '#cursors' ) as HTMLElement;
+    var topbar = mainBody!.querySelector( '.topbar-left' ) as HTMLElement;
+    var chevron = document.createElement( 'i' );
+    chevron.classList.add( 'fa-solid' );
+    chevron.classList.add( 'fa-chevron-right' );
+    chevron.style.transform = 'scale(0.6)';
+    var deviceName = document.createTextNode( '' );
+    topbar.appendChild( chevron );
+    topbar.appendChild( deviceName );
 
     var xOffset = 0;
     var yOffset = 0;
@@ -470,6 +479,8 @@ async function loadControlPage ( state: PageState ) {
     controlPageRemoved = () => {
         window.removeEventListener( 'resize', windowResized );
         sockets.message<API.MessageLeaveRoom>( { type: 'leave-room' } );
+        deviceName.remove();
+        chevron.remove();
     };
 
     sockets.request<API.RequestDeviceInfo>( { type: 'device-info', deviceId: id } ).then( res => {
@@ -477,6 +488,8 @@ async function loadControlPage ( state: PageState ) {
             console.error( 'Requested device info was not found' );
             return;
         }
+
+        deviceName.nodeValue = res.name;
 
         function createButton ( control: Control.Button ) {
             var button = document.createElement( 'div' );
