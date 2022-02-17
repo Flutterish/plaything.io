@@ -1,9 +1,18 @@
-import { Control, Device } from "./Device";
+import { AnyControlInstance, Control, Device } from "./Device";
 import { CreateEvent } from "./Events.js";
 import { Reactive } from "./Reactive.js";
 import { SubscribeablePool } from "./Subscription.js";
 import { CreateActiveUserPool, User } from "./User.js";
 import { API, Uncertain } from './Api';
+
+export type RoomControlInstance = {
+    id: number,
+    control: AnyControlInstance,
+    hoveredBy: Set<User>,
+    isHovered: Reactive<boolean>,
+    activeBy: Set<User>,
+    isActive: Reactive<boolean>
+}
 
 export type Room = {
     name: string,
@@ -12,7 +21,8 @@ export type Room = {
     getSessions: () => RoomSession[],
     handleUserMovedPointer: (user: User, req: Uncertain<API.MessageMovedPointer>) => any,
     handleUserModifiedControl: (user: User, req: Uncertain<API.MessageModifiedControl>) => any,
-    getSession: (user: User) => RoomSession | undefined
+    getSession: (user: User) => RoomSession | undefined,
+    controls: SubscribeablePool<RoomControlInstance>
 } & SubscribeablePool<RoomSession>
 
 export type CursorType = 'default' | 'pointer';
@@ -24,12 +34,13 @@ export type RoomSession = {
     isActive: Reactive<boolean>,
     isUserActive: Reactive<boolean>
 }
-export function CreateRoom ( name: string, controls: Control.Any[] ): Room & { activePool: SubscribeablePool<User> } {
+export function CreateRoom ( name: string, controls: AnyControlInstance[] ): Room & { activePool: SubscribeablePool<User> } {
     const roomSessionsByUser: { [uid: number]: RoomSession } = {};
 
     var [entryAddedEvent, entryAddedTrigger] = CreateEvent<RoomSession>();
     var [entryRemovedEvent, entryRemovedTrigger] = CreateEvent<RoomSession>();
 
+    var instances = createControlInstances( controls );
     var room = {
         name: name,
         join: user => {
@@ -62,6 +73,7 @@ export function CreateRoom ( name: string, controls: Control.Any[] ): Room & { a
             session.isUserActive.RemoveEvents();
             session.isUserActive.UnbindAll();
             delete roomSessionsByUser[ user.UID ];
+            instances.setUserAction( user, undefined );
             entryRemovedTrigger( session );
         },
         getValues: () => Object.values( roomSessionsByUser ),
@@ -88,10 +100,11 @@ export function CreateRoom ( name: string, controls: Control.Any[] ): Room & { a
             if ( session != undefined ) {
                 session.lastActive = Date.now();
                 session.isActive.Value = true;
-                // TODO set control
+                instances.setUserAction( session.user, req );
             }
         },
-        getSession: user => roomSessionsByUser[ user.UID ]
+        getSession: user => roomSessionsByUser[ user.UID ],
+        controls: instances
     } as Room;
 
     var active = CreateActiveUserPool<RoomSession>( room );
@@ -110,5 +123,59 @@ export function CreateRoom ( name: string, controls: Control.Any[] ): Room & { a
     return {
         ...room,
         activePool: active
+    }
+}
+
+function createControlInstances ( controls: AnyControlInstance[] ) {
+    const controlsById: RoomControlInstance[] = [];
+    const userTargets: Map<User, RoomControlInstance> = new Map()
+
+    var [entryAddedEvent, entryAddedTrigger] = CreateEvent<RoomControlInstance>();
+    var [entryRemovedEvent, entryRemovedTrigger] = CreateEvent<RoomControlInstance>();
+
+    for ( let i = 0; i < controls.length; i++ ) {
+        controlsById.push({
+            control: controls[i],
+            id: i,
+            hoveredBy: new Set<User>(),
+            activeBy: new Set<User>(),
+            isHovered: new Reactive<boolean>( false ),
+            isActive: new Reactive<boolean>( false )
+        });
+    }
+
+    return {
+        entryAdded: entryAddedEvent,
+        entryRemoved: entryRemovedEvent,
+        getValues: () => controlsById,
+        setUserAction: (user: User, req?: Uncertain<API.MessageModifiedControl>) => {
+            var oldTarget = userTargets.get( user );
+            var newTarget = req?.controlId == undefined ? undefined : controlsById[ req.controlId ];
+            
+            oldTarget?.activeBy.delete( user );
+            oldTarget?.hoveredBy.delete( user );
+            if ( req?.hovered )
+                newTarget?.hoveredBy.add( user );
+            if ( req?.active )
+                newTarget?.activeBy.add( user );
+
+            if ( oldTarget != undefined ) {
+                oldTarget.isHovered.Value = oldTarget.hoveredBy.size != 0;
+                oldTarget.isActive.Value = oldTarget.activeBy.size != 0;
+            }
+            if ( newTarget != undefined ) {
+                newTarget.isHovered.Value = newTarget.hoveredBy.size != 0;
+                newTarget.isActive.Value = newTarget.activeBy.size != 0;
+
+                newTarget.control.TrySet( req?.state );
+            }
+
+            if ( newTarget == undefined ) {
+                userTargets.delete( user );
+            }
+            else {
+                userTargets.set( user, newTarget );
+            }
+        }
     }
 }

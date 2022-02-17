@@ -467,6 +467,7 @@ async function loadControlPage ( state: PageState ) {
     var normalWidth = 0;
     var normalHeight = 0;
 
+    var controlUpdate: ((res: Extract<API.HeartbeatControlRoomUpdate, {kind: 'control-modified'}>) => any) | undefined = undefined;
     var repositionControls: (() => any) | undefined = undefined;
     var repositionCursors: (() => any) | undefined = undefined;
     function windowResized () {
@@ -491,7 +492,7 @@ async function loadControlPage ( state: PageState ) {
 
         deviceName.nodeValue = res.name;
 
-        function createButton ( control: Control.Button ) {
+        function createButton ( control: Control.Button, id: number ) {
             var button = document.createElement( 'div' );
             button.classList.add( 'control-button' );
             if ( control.label != undefined ) {
@@ -504,6 +505,7 @@ async function loadControlPage ( state: PageState ) {
             inner.classList.add( 'button-inner' );
             inner.classList.add( 'button' );
             inner.classList.add( 'font-icon' );
+            reactsById.set( id, inner );
             button.appendChild( inner );
             var icon = document.createElement( 'i' );
             icon.classList.add( 'fa-solid' );
@@ -512,7 +514,7 @@ async function loadControlPage ( state: PageState ) {
 
             return button;
         }
-        function createSlider ( control: Control.Slider ) {
+        function createSlider ( control: Control.Slider, id: number ) {
             var slider = document.createElement( 'div' );
             slider.classList.add( 'control-slider' );
             if ( control.label != undefined ) {
@@ -542,6 +544,7 @@ async function loadControlPage ( state: PageState ) {
             slider.appendChild( notches );
             var handle = document.createElement( 'div' );
             handle.classList.add( 'handle' );
+            reactsById.set( id, handle );
             slider.appendChild( handle );
 
             return slider;
@@ -549,13 +552,34 @@ async function loadControlPage ( state: PageState ) {
 
         const controls = res.controls;
         const boundsByControl = new Map<Control.Any, HTMLElement>();
+        const reactsById = new Map<number, HTMLElement>()
+        let i = 0;
         for ( const control of controls ) {
+            const id = i;
             let itemBounds = control.type == 'button'
-                ? createButton( control )
-                : createSlider( control );
+                ? createButton( control, id )
+                : createSlider( control, id );
                 
             boundsByControl.set( control, itemBounds );
             controlList.appendChild( itemBounds );
+            var react = reactsById.get( id );
+
+            const isHover = (e: HTMLElement) => e.parentElement!.querySelector(':hover') === e;
+            const isActive = (e: HTMLElement) => e.parentElement!.querySelector(':hover') === e;
+            
+            react?.addEventListener( 'mouseenter', e => {
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: isActive( react! ), hovered: true } );
+            } );
+            react?.addEventListener( 'mouseleave', e => {
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: isActive( react! ), hovered: false } );
+            } );
+            react?.addEventListener( 'mousedown', e => {
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: true, hovered: isHover( react! ) } );
+            } );
+            react?.addEventListener( 'mouseup', e => {
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, active: false, hovered: isHover( react! ) } );
+            } );
+            i++;
         }
 
         var bounds = share;
@@ -596,6 +620,23 @@ async function loadControlPage ( state: PageState ) {
         updateLayout();
         flexFont( share );
         repositionControls = updateLayout;
+        // TODO this should probably be done with bounding boxes and cursor states rather than server-side 'isHovered/isActive'
+        controlUpdate = res => {
+            var control = res.control;
+            var item = reactsById.get( res.control.controlId );
+
+            if ( item != undefined ) {
+                item.classList.remove( 'hover' );
+                item.classList.remove( 'active' );
+                
+                if ( control.active ) {
+                    item.classList.add( 'active' );
+                }
+                else if ( control.hovered ) {
+                    item.classList.add( 'hover' );
+                }
+            }
+        };
     } );
     sockets.request<API.RequestJoinControlRoom>( { type: 'join-control', deviceId: id } ).then( res => {
         if ( res.result != 'ok' ) {
@@ -672,6 +713,9 @@ async function loadControlPage ( state: PageState ) {
             }
             else if ( res.kind == 'user-left' ) {
                 removeUser( res.uid );
+            }
+            else if ( res.kind == 'control-modified' ) {
+                controlUpdate?.( res );
             }
         };
 

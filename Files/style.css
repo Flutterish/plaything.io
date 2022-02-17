@@ -222,11 +222,11 @@ input[type='text'], input[type='password'] {
     cursor: pointer;
 }
 
-.button:hover {
+.button:hover, .button.hover {
     background-color: var(--button-hover);
 }
 
-.button:active {
+.button:active, .button.active {
     background-color: var(--button-active);
     transition: var(--buttonTransitionIn);
     transform: scale(0.9);
@@ -662,11 +662,11 @@ select {
     cursor: grab;
 }
 
-.handle:hover {
+.handle:hover, .handle.hover {
     background-color: var(--control-slider-handle-hover);
 }
 
-.handle:active {
+.handle:active, .handle.active {
     background-color: var(--control-slider-handle-active);
 }
 

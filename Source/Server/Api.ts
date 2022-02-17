@@ -92,7 +92,9 @@ export namespace API {
     export type MessageModifiedControl = {
         type: 'modified-control',
         controlId: number,
-        state: any
+        state?: any,
+        hovered: boolean,
+        active: boolean
     } & SessionRequest
     type MessageTypes = AliveAck | MessageMovedPointer | MessageModifiedControl | MessageLeaveRoom
     export type Message = Extract<MessageTypes, {type: string}>
@@ -125,7 +127,8 @@ export namespace API {
     }) | InvalidSession
     export type ResponseJoinControlRoom = ({
         result: 'ok'
-        users: ControlRoomUser[]
+        users: ControlRoomUser[],
+        controls: ControlRoomControl[]
     } | {
         result: 'device not found' | 'already in a different room' | 'cant join room'
     }) | InvalidSession
@@ -159,6 +162,7 @@ export namespace API {
         uid: number
     })
     export type ControlRoomUser = { uid: number, nickname: string, accent: string, x: number, y: number, pointer: CursorType }
+    export type ControlRoomControl = { controlId: number, state: any, hovered: boolean, active: boolean }
     export type HeartbeatControlRoomUpdate = {
         type: 'hearthbeat-control-room'
     } & ({
@@ -169,8 +173,7 @@ export namespace API {
         uid: number
     } | {
         kind: 'control-modified',
-        controlId: number,
-        state: any
+        control: ControlRoomControl
     })
     type HeartbeatTypes = HeartbeatUsers | HeartbeatControlRoomUpdate
     export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>

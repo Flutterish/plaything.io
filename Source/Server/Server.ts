@@ -8,6 +8,7 @@ import { User, CreateUserPool, UserSession, CreateActiveUserPool } from './User.
 import { SessionKey } from './Session';
 import { PoolSubscription, CreatePoolSubscription, SubscribeablePool } from './Subscription.js';
 import { Room, CreateRoom, RoomSession } from './Room.js';
+import { RoomControlInstance } from './Room';
 
 const app = express();
 const port = 8080;
@@ -39,6 +40,7 @@ activeUsers.entryRemoved.addEventListener( user => {
 const wsSessions = new Map<WebSocket, SessionKey>();
 const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
 const wsRoomSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
+const wsControlSubscriptions = new Map<WebSocket, PoolSubscription<RoomControlInstance>>();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
@@ -121,6 +123,8 @@ wss.addListener( 'connection', (ws, req) => {
         wsUserSubscriptions.delete( ws );
         wsRoomSubscriptions.get( ws )?.unsubscribe();
         wsRoomSubscriptions.delete( ws );
+        wsControlSubscriptions.get( ws )?.unsubscribe();
+        wsControlSubscriptions.delete( ws );
         FreeLogFile( address );
     } );
     ws.addEventListener( 'error', err => {
@@ -386,7 +390,7 @@ const ApiHandlers: {
             return {
                 result: 'ok',
                 name: device.name,
-                controls: device.controls
+                controls: device.controls.map( x => x.Prototype )
             }
         }
     } ),
@@ -421,6 +425,8 @@ const ApiHandlers: {
                 if ( ws != undefined ) {
                     wsRoomSubscriptions.get( ws )?.unsubscribe();
                     wsRoomSubscriptions.delete( ws );
+                    wsControlSubscriptions.get( ws )?.unsubscribe();
+                    wsControlSubscriptions.delete( ws );
 
                     function joinOrUpdate ( user: User, kind: 'user-joined' | 'user-updated' ) {
                         var session = room.getSession( user )!;
@@ -431,7 +437,7 @@ const ApiHandlers: {
                         } as API.HeartbeatControlRoomUpdate ) )
                     }
 
-                    wsRoomSubscriptions.set( ws, CreatePoolSubscription( 
+                    wsRoomSubscriptions.set( ws, CreatePoolSubscription<User>( 
                         room.activePool,
                         (user, scan) => { if ( !scan && user != session.user ) joinOrUpdate( user, 'user-joined' ) },
                         user => { if ( user != session.user ) ws.send( JSON.stringify( {
@@ -449,12 +455,37 @@ const ApiHandlers: {
                         x => room.getSession( x )!.cursorStyle,
                         (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
                     ) );
+
+                    function sendUpdate ( control: RoomControlInstance ) {
+                        ws!.send( JSON.stringify( {
+                            type: 'hearthbeat-control-room',
+                            kind: 'control-modified',
+                            control: { controlId: control.id, state: control.control.State.Value, hovered: control.isHovered.Value, active: control.isActive.Value }
+                        } as API.HeartbeatControlRoomUpdate ) );
+                    }
+
+                    wsControlSubscriptions.set( ws, CreatePoolSubscription<RoomControlInstance>(
+                        room.controls,
+                        (control, scan) => {},
+                        (control) => {}
+                    ).ReactTo( 
+                        x => x.isHovered,
+                        control => sendUpdate( control )
+                    ).ReactTo( 
+                        x => x.isActive,
+                        control => sendUpdate( control )
+                    ).ReactTo(
+                        x => x.control.State,
+                        control => sendUpdate( control )
+                    ) );
                 }
     
                 return {
                     result: 'ok',
                     users: room.getSessions().filter( x => x.user != session.user && x.isActive.Value )
-                        .map( x => ({ uid: x.user.UID, nickname: x.user.nickname, accent: x.user.accent.Value, x: x.position.Value[0], y: x.position.Value[1], pointer: x.cursorStyle.Value }) )
+                        .map( x => ({ uid: x.user.UID, nickname: x.user.nickname, accent: x.user.accent.Value, x: x.position.Value[0], y: x.position.Value[1], pointer: x.cursorStyle.Value }) ),
+                    controls: room.controls.getValues()
+                        .map( x => ({ active: x.isActive.Value, hovered: x.isHovered.Value, controlId: x.id, state: x.control.State.Value } ) )
                 }
             }
             else {
@@ -508,6 +539,8 @@ const MessageHandlers: {
             if ( ws != undefined ) {
                 wsRoomSubscriptions.get( ws )?.unsubscribe();
                 wsRoomSubscriptions.delete( ws );
+                wsControlSubscriptions.get( ws )?.unsubscribe();
+                wsControlSubscriptions.delete( ws );
             }
         }
     } ),
