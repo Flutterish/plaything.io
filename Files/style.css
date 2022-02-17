@@ -704,13 +704,13 @@ select {
 
 .cursor-name {
     font-size: 70%;
-    top: 1em;
+    top: 1.5em;
     text-shadow: none;
     padding: 0 5px;
     color: var(--background);
     font-weight: bold;
     background-color: var(--user-color);
-    position: relative;
+    position: absolute;
     display: inline-block;
 }
 
