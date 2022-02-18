@@ -488,6 +488,20 @@ hr:active {
     text-align: right;
 }
 
+@media screen and (max-width: 700px) {
+    .overlayContent {
+        width: 100%;
+    }
+
+    .options {
+        flex-flow: column nowrap;
+    }
+
+    .options > *:nth-child(n) {
+        text-align: center;
+    }
+}
+
 select {
     border: none;
     border-radius: 3px;
