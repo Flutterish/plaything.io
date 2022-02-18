@@ -174,6 +174,12 @@ function createControlInstances ( controls: AnyControlInstance[] ) {
                 newTarget?.hoveredBy.delete( user );
             }
 
+            if ( req == undefined ) {
+                oldTarget?.activeBy.delete( user );
+                oldTarget?.hoveredBy.delete( user );
+                userTargets.delete( user );
+            }
+
             if ( oldTarget != undefined ) {
                 oldTarget.isActive.Value = oldTarget.activeBy.size != 0;
             }

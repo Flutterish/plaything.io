@@ -61,12 +61,14 @@ export class Reactive<T> {
         this.valueChanged = [];
     }
     UnbindAll () {
-        for ( const b of [...this.bindees] ) {
+        for ( const b of this.bindees ) {
             var bindee = b.deref();
             if ( bindee != undefined ) {
-                this.UnbindFrom( bindee );
+                var index = bindee.bindees.indexOf( this.self );
+                bindee.bindees.splice( index, 1 );
             }
         }
+        this.bindees = [];
     }
 
     private bindees: WeakRef<Reactive<T>>[] = [];
@@ -78,11 +80,11 @@ export class Reactive<T> {
 
         this.Value = other.Value;
     }
-    UnbindFrom ( other : Reactive<T> ) {
+    UnbindFrom ( other: Reactive<T> ) {
         var index = this.bindees.indexOf( other.self );
-        if ( index != -1 ) this.bindees.splice( index );
+        if ( index != -1 ) this.bindees.splice( index, 1 );
         index = other.bindees.indexOf( this.self );
-        if ( index != -1 ) other.bindees.splice( index );
+        if ( index != -1 ) other.bindees.splice( index, 1 );
     }
 }
 

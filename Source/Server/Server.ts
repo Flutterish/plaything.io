@@ -6,7 +6,7 @@ import { API, RequestResponseMap, Uncertain } from './Api';
 import { FreeLogFile, Log, LogConnection, LogUser, LogWithSource } from './Logger.js';
 import { User, CreateUserPool, UserSession, CreateActiveUserPool } from './User.js';
 import { SessionKey } from './Session';
-import { PoolSubscription, CreatePoolSubscription, SubscribeablePool } from './Subscription.js';
+import { PoolSubscription, CreatePoolSubscription, SubscribeablePool, CreateWebsocketSubscriptionManager } from './Subscription.js';
 import { Room, CreateRoom, RoomSession } from './Room.js';
 import { RoomControlInstance } from './Room';
 
@@ -35,12 +35,8 @@ activeUsers.entryRemoved.addEventListener( user => {
     LogUser( user, `is no longer active` );
 } );
 
-// TODO we will need to abstract this away
-// NOTE these also need to be connected to a session or a user because they can be cancelled by say leaving a room with a http request which wouldnt cancel it
 const wsSessions = new Map<WebSocket, SessionKey>();
-const wsUserSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
-const wsRoomSubscriptions = new Map<WebSocket, PoolSubscription<User>>();
-const wsControlSubscriptions = new Map<WebSocket, PoolSubscription<RoomControlInstance>>();
+const wsSubscriptions = CreateWebsocketSubscriptionManager();
 function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
@@ -119,12 +115,6 @@ wss.addListener( 'connection', (ws, req) => {
             loginSessions.getSession( key )!.isActive.Value = false;
         }
         wsSessions.delete( ws );
-        wsUserSubscriptions.get( ws )?.unsubscribe();
-        wsUserSubscriptions.delete( ws );
-        wsRoomSubscriptions.get( ws )?.unsubscribe();
-        wsRoomSubscriptions.delete( ws );
-        wsControlSubscriptions.get( ws )?.unsubscribe();
-        wsControlSubscriptions.delete( ws );
         FreeLogFile( address );
     } );
     ws.addEventListener( 'error', err => {
@@ -324,7 +314,7 @@ const ApiHandlers: {
     } ),
 
     'subscibe-users': SessionHandler( async ( session, req, ws ) => {
-        if ( ws != undefined && !wsUserSubscriptions.has( ws ) ) {
+        if ( wsSubscriptions.canSubscribe( ws, 'users' ) ) {
             function addOrUpdate ( user: User, kind: 'added' | 'updated' ) {
                 ws!.send( JSON.stringify( {
                     type: 'heartbeat-users',
@@ -341,7 +331,7 @@ const ApiHandlers: {
                 } as API.HeartbeatUsers ) );
             }
 
-            wsUserSubscriptions.set( ws, CreatePoolSubscription<User>(
+            var subscription = CreatePoolSubscription<User>(
                 activeUsers,
                 ( user, scan ) => { if ( !scan && user != session.user ) addOrUpdate( user, 'added' ) },
                 ( user ) => { if ( user != session.user ) remove( user ) }
@@ -349,7 +339,9 @@ const ApiHandlers: {
                 if ( user != session.user ) addOrUpdate( user, 'updated' )
             } ).ReactTo( user => user.room, ( user, value ) => {
                 if ( user != session.user ) addOrUpdate( user, 'updated' )
-            } ) );
+            } );
+
+            wsSubscriptions.createSubscription( ws, 'users', subscription.unsubscribe );
         }
 
         return {
@@ -419,22 +411,11 @@ const ApiHandlers: {
             if ( session.user.room.Value != undefined && session.user.room.Value != room ) {
                 session.user.room.Value.leave( session.user );
                 session.user.room.Value = undefined;
-                if ( ws != undefined ) {
-                    wsRoomSubscriptions.get( ws )?.unsubscribe();
-                    wsRoomSubscriptions.delete( ws );
-                    wsControlSubscriptions.get( ws )?.unsubscribe();
-                    wsControlSubscriptions.delete( ws );
-                }
             }
 
             if ( session.user.room.Value == room || room.join( session.user ) ) {
                 session.user.room.Value = room;
-                if ( ws != undefined ) {
-                    wsRoomSubscriptions.get( ws )?.unsubscribe();
-                    wsRoomSubscriptions.delete( ws );
-                    wsControlSubscriptions.get( ws )?.unsubscribe();
-                    wsControlSubscriptions.delete( ws );
-
+                if ( wsSubscriptions.canSubscribe( ws, 'control-room' ) ) {
                     function joinOrUpdate ( user: User, kind: 'user-joined' | 'user-updated' ) {
                         var session = room.getSession( user )!;
                         ws!.send( JSON.stringify( {
@@ -444,7 +425,7 @@ const ApiHandlers: {
                         } as API.HeartbeatControlRoomUpdate ) )
                     }
 
-                    wsRoomSubscriptions.set( ws, CreatePoolSubscription<User>( 
+                    var roomSubscription = CreatePoolSubscription<User>( 
                         room.activePool,
                         (user, scan) => { if ( !scan && user != session.user ) joinOrUpdate( user, 'user-joined' ) },
                         user => { if ( user != session.user ) ws.send( JSON.stringify( {
@@ -461,7 +442,7 @@ const ApiHandlers: {
                     ).ReactTo(
                         x => room.getSession( x )!.cursorStyle,
                         (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
-                    ) );
+                    );
 
                     function sendUpdate ( control: RoomControlInstance ) {
                         ws!.send( JSON.stringify( {
@@ -471,7 +452,7 @@ const ApiHandlers: {
                         } as API.HeartbeatControlRoomUpdate ) );
                     }
 
-                    wsControlSubscriptions.set( ws, CreatePoolSubscription<RoomControlInstance>(
+                    var controlSubscription = CreatePoolSubscription<RoomControlInstance>(
                         room.controls,
                         (control, scan) => {},
                         (control) => {}
@@ -484,7 +465,20 @@ const ApiHandlers: {
                     ).ReactTo(
                         x => x.control.State,
                         control => sendUpdate( control )
-                    ) );
+                    );
+
+                    var cancel = room.entryRemoved.addOnceWhen(
+                        s => s.user == session.user,
+                        s => {
+                            console.log( 'unsubbed', s.user.nickname );
+                            wsSubscriptions.removeSubscription( ws, 'control-room' )
+                        }
+                    );
+                    wsSubscriptions.createSubscription( ws, 'control-room', () => {
+                        roomSubscription.unsubscribe();
+                        controlSubscription.unsubscribe();
+                        cancel();
+                    } );
                 }
     
                 return {
@@ -543,12 +537,6 @@ const MessageHandlers: {
         if ( room != undefined ) {
             room.leave( session.user );
             session.user.room.Value = undefined;
-            if ( ws != undefined ) {
-                wsRoomSubscriptions.get( ws )?.unsubscribe();
-                wsRoomSubscriptions.delete( ws );
-                wsControlSubscriptions.get( ws )?.unsubscribe();
-                wsControlSubscriptions.delete( ws );
-            }
         }
     } ),
 };

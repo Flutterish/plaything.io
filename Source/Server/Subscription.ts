@@ -1,4 +1,5 @@
-import { CreateEvent } from "./Events.js";
+import WebSocket from "ws";
+import { CreateEvent, Event } from "./Events.js";
 import { Reactive } from "./Reactive.js";
 import { HasUserActivity } from "./User.js";
 
@@ -14,8 +15,8 @@ export type AddedListener<Tsession> = ( session: Tsession, scan?: true ) => any;
 export type RemovedListener<Tsession> = ( session: Tsession ) => any;
 
 export type SubscribeablePool<Tsession> = {
-    entryAdded: { addEventListener: (fn: AddedListener<Tsession>) => any, removeEventListener: (fn: AddedListener<Tsession>) => any },
-    entryRemoved: { addEventListener: (fn: RemovedListener<Tsession>) => any, removeEventListener: (fn: RemovedListener<Tsession>) => any },
+    entryAdded: Event<Tsession>,
+    entryRemoved: Event<Tsession>,
     getValues: () => Readonly<Array<Tsession>>
 }
 
@@ -66,6 +67,7 @@ export function CreatePoolSubscription<Tsession> (
             removed = (session) => {
                 var reactive = reactives.get( session );
                 reactive?.RemoveEvents();
+                reactive?.UnbindAll();
                 reactives.delete( session );
                 chainRemoved( session );
             };
@@ -95,4 +97,49 @@ export function CreatePoolSubscription<Tsession> (
         unsubscribe: unsubscribe,
         ReactTo: reactToFactory()
     };
+}
+
+export function CreateWebsocketSubscriptionManager () {
+    const keys = Symbol('keys');
+    var wsMap = new Map<WebSocket, {[keys]: number, [key: string]: () => any}>();
+
+    var manager = {
+        canSubscribe: (ws: WebSocket | undefined, name: string): ws is WebSocket => {
+            return ws != undefined && !manager.subscriptionExists( ws, name );
+        },
+        subscriptionExists: (ws: WebSocket, name: string) => {
+            var map = wsMap.get( ws );
+            return map != undefined && map[name] != undefined;
+        },
+        createSubscription: (ws: WebSocket, name: string, unsub: () => any) => {
+            if ( !wsMap.has( ws ) ) {
+                wsMap.set( ws, { [keys]: 0 } );
+            }
+
+            var map = wsMap.get( ws )!;
+            if ( map[name] != undefined ) {
+                throw `Can only have one ws subscription of type '${name}'`;
+            }
+            map[keys]++;
+            function remove () {
+                delete map[name];
+                map[keys]--;
+                if ( map[keys] == 0 ) {
+                    wsMap.delete( ws );
+                }
+                unsub();
+            }
+
+            map[name] = remove;
+            ws.addEventListener( 'close', remove );
+        },
+        removeSubscription: (ws: WebSocket, name: string) => {
+            var map = wsMap.get( ws );
+            if ( map != undefined && map[name] != undefined ) {
+                map[name]();
+            }
+        }
+    };
+
+    return manager;
 }
