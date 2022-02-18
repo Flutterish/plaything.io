@@ -335,13 +335,18 @@ const ApiHandlers: {
 
             var subscription = CreatePoolSubscription<User>(
                 activeUsers,
-                ( user, scan ) => { if ( !scan && user != session.user ) addOrUpdate( user, 'added' ) },
-                ( user ) => { if ( user != session.user ) remove( user ) }
-            ).ReactTo( user => user.accent, ( user, value ) => {
-                if ( user != session.user ) addOrUpdate( user, 'updated' )
-            } ).ReactTo( user => user.room, ( user, value ) => {
-                if ( user != session.user ) addOrUpdate( user, 'updated' )
-            } );
+                user => addOrUpdate( user, 'added' ),
+                user => remove( user ), {
+                    ignoreExistingEntries: true,
+                    ignore: user => user == session.user
+                }
+            ).ReactTo( 
+                user => user.accent, 
+                user => addOrUpdate( user, 'updated' )
+            ).ReactTo( 
+                user => user.room,   
+                user => addOrUpdate( user, 'updated' )
+            );
 
             wsSubscriptions.createSubscription( ws, 'users', subscription.unsubscribe );
         }
@@ -429,21 +434,24 @@ const ApiHandlers: {
 
                     var roomSubscription = CreatePoolSubscription<User>( 
                         room.activePool,
-                        (user, scan) => { if ( !scan && user != session.user ) joinOrUpdate( user, 'user-joined' ) },
-                        user => { if ( user != session.user ) ws.send( {
+                        user => joinOrUpdate( user, 'user-joined' ),
+                        user => ws.send( {
                             type: 'hearthbeat-control-room',
                             kind: 'user-left',
                             uid: user.UID
-                        } ) }
+                        } ), {
+                            ignoreExistingEntries: true,
+                            ignore: user => user == session.user
+                        }
                     ).ReactTo( 
                         x => x.accent, 
-                        (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
+                        user => joinOrUpdate( user, 'user-updated' )
                     ).ReactTo(
                         x => room.getSession( x )!.position,
-                        (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
+                        user => joinOrUpdate( user, 'user-updated' )
                     ).ReactTo(
                         x => room.getSession( x )!.cursorStyle,
-                        (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
+                        user => joinOrUpdate( user, 'user-updated' )
                     );
 
                     function sendUpdate ( control: RoomControlInstance ) {
@@ -456,8 +464,8 @@ const ApiHandlers: {
 
                     var controlSubscription = CreatePoolSubscription<RoomControlInstance>(
                         room.controls,
-                        (control, scan) => {},
-                        (control) => {}
+                        () => {},
+                        () => {}
                     ).ReactTo( 
                         x => x.isHovered,
                         control => sendUpdate( control )

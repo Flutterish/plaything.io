@@ -22,14 +22,20 @@ export type SubscribeablePool<Tsession> = {
 export function CreatePoolSubscription<Tsession> (
     sessionPool: SubscribeablePool<Tsession>,
     added: AddedListener<Tsession>,
-    removed: RemovedListener<Tsession>
+    removed: RemovedListener<Tsession>,
+    options?: {
+        ignoreExistingEntries?: boolean,
+        ignore?: (v: Tsession) => boolean
+    }
 ): PoolSubscription<Tsession> {
     function entryAdded ( session: Tsession, scan?: true ) {
-        added( session, scan );
+        if ( !(options?.ignoreExistingEntries && scan) && options?.ignore?.( session ) != true )
+            added( session, scan );
     }
     
     function entryRemoved ( session: Tsession ) {
-        removed( session );
+        if ( options?.ignore?.( session ) != true )
+            removed( session );
     }
     
     var unsubscribe = () => {
@@ -41,7 +47,7 @@ export function CreatePoolSubscription<Tsession> (
     sessionPool.entryRemoved.addEventListener( entryRemoved );
     
     for ( const s of sessionPool.getValues() ) {
-        added( s, true );
+        entryAdded( s, true );
     }
 
     function reactToFactory () {
@@ -72,7 +78,8 @@ export function CreatePoolSubscription<Tsession> (
             };
 
             for ( const s of sessionPool.getValues() ) {
-                selfAdded( s, true );
+                if ( options?.ignore?.( s ) != true )
+                    selfAdded( s, true );
             }
 
             var chainUnsubscribe = unsubscribe;
