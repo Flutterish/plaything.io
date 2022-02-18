@@ -196,7 +196,7 @@ function createControlInstances ( controls: AnyControlInstance[] ) {
                 newTarget.isHovered.Value = newTarget.hoveredBy.size != 0;
                 newTarget.isActive.Value = newTarget.activeBy.size != 0;
 
-                newTarget.control.TrySet( req?.state );
+                newTarget.control.TrySet( req?.state, req?.timestamp );
             }
         }
     }

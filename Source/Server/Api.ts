@@ -100,7 +100,8 @@ export namespace API {
         controlId: number,
         state?: any,
         hovered?: boolean,
-        active?: boolean
+        active?: boolean,
+        timestamp?: number
     } & SessionRequest
     type MessageTypes = AliveAck | MessageMovedPointer | MessageSentText | MessageModifiedControl | MessageLeaveRoom
     export type Message = Extract<MessageTypes, {type: string}>

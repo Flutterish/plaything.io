@@ -535,7 +535,7 @@ async function loadControlPage ( state: PageState ) {
                 value = !value;
                 updateVisual();
 
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value } );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value, timestamp: Date.now() } );
             } );
 
             updateVisual();
@@ -592,7 +592,7 @@ async function loadControlPage ( state: PageState ) {
                 var y = 1 - (e.clientY - bound.top - padding) / (bound.height - padding * 2);
                 y = Math.max( Math.min( y, 1 ), 0 );
                 value = control.range[0] + y * ( control.range[1] - control.range[0] );
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value } );
+                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value, timestamp: Date.now() } );
                 updateVisual();
             }
             function dragEnd () {

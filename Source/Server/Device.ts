@@ -26,25 +26,35 @@ export namespace Control {
 export abstract class ControlInstance<T extends Control.Any, Tvalue> {
     readonly Prototype: T;
     readonly State: Reactive<Tvalue>;
+    private lastEditTimestamp: number;
 
     constructor ( proto: T, value: Tvalue ) {
         this.Prototype = proto;
         this.State = new Reactive<Tvalue>( value );
+        this.lastEditTimestamp = Date.now();
     }
 
-    abstract TrySet ( value: any ): any
+    TrySet ( value: any, timestamp?: number ) {
+        timestamp ??= Date.now();
+        if ( timestamp >= this.lastEditTimestamp ) {
+            this.lastEditTimestamp = timestamp;
+            this.Set( value );
+        }
+    }
+
+    protected abstract Set ( value: any ): any;
 }
 
 export type AnyControlInstance = ControlInstance<Control.Any, any>;
 export class ButtonInstance extends ControlInstance<Control.Button, boolean> {
-    TrySet ( value: any ) {
+    Set ( value: any ) {
         if ( typeof value === 'boolean' ) {
             this.State.Value = value;
         }
     }
 };
 export class SliderInstance extends ControlInstance<Control.Slider, number> {
-    TrySet ( value: any ) {
+    Set ( value: any ) {
         if ( typeof value === 'number' ) {
             var from = Math.min( ...this.Prototype.range );
             var to = Math.max( ...this.Prototype.range );
