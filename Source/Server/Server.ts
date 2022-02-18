@@ -38,8 +38,8 @@ activeUsers.entryRemoved.addEventListener( user => {
 
 const wsSessions = new Map<Socket, SessionKey>();
 const wsSubscriptions = CreateWebsocketSubscriptionManager();
-function getSessionKey ( ws?: Socket, falllback?: SessionKey ) {
-    return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
+function getSessionKey ( ws?: Socket, fallback?: SessionKey ) {
+    return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? fallback;
 }
 
 setInterval( () => {
