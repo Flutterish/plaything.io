@@ -1,5 +1,5 @@
 import { AnyControlInstance, Control, Device } from "./Device";
-import { CreateEvent } from "./Events.js";
+import { CreateEvent, Event } from "./Events.js";
 import { Reactive } from "./Reactive.js";
 import { SubscribeablePool } from "./Subscription.js";
 import { CreateActiveUserPool, User } from "./User.js";
@@ -21,8 +21,10 @@ export type Room = {
     getSessions: () => RoomSession[],
     handleUserMovedPointer: (user: User, req: Uncertain<API.MessageMovedPointer>) => any,
     handleUserModifiedControl: (user: User, req: Uncertain<API.MessageModifiedControl>) => any,
+    handleUserSentMessage: (user: User, req: Uncertain<API.MessageSentText>) => any,
     getSession: (user: User) => RoomSession | undefined,
-    controls: SubscribeablePool<RoomControlInstance>
+    controls: SubscribeablePool<RoomControlInstance>,
+    messageSent: Event<[user: User, message: API.MessageSentText]>,
 } & SubscribeablePool<RoomSession>
 
 export type CursorType = 'default' | 'pointer';
@@ -39,6 +41,7 @@ export function CreateRoom ( name: string, controls: AnyControlInstance[] ): Roo
 
     var [entryAddedEvent, entryAddedTrigger] = CreateEvent<RoomSession>();
     var [entryRemovedEvent, entryRemovedTrigger] = CreateEvent<RoomSession>();
+    var [messageSent, sendMessage] = CreateEvent<[user: User, message: API.MessageSentText]>();
 
     var instances = createControlInstances( controls );
     var room = {
@@ -104,7 +107,13 @@ export function CreateRoom ( name: string, controls: AnyControlInstance[] ): Roo
             }
         },
         getSession: user => roomSessionsByUser[ user.UID ],
-        controls: instances
+        controls: instances,
+        messageSent: messageSent,
+        handleUserSentMessage: (user, req) => {
+            if ( roomSessionsByUser[ user.UID ] != undefined && typeof req.x === 'number' && typeof req.y === 'number' && typeof req.message === 'string' ) {
+                sendMessage( [user, req as API.MessageSentText] );
+            }
+        }
     } as Room;
 
     var active = CreateActiveUserPool<RoomSession>( room );

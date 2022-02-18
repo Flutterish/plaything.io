@@ -493,61 +493,6 @@ select {
     color: var(--select-color);
 }
 
-.chat {
-    margin: auto;
-    border-radius: 3px;
-    width: 300px;
-    background-color: var(--background2);
-    height: 400px;
-    display: flex;
-    flex-flow: column nowrap;
-
-    position: absolute;
-    bottom: 40px;
-    right: 23px;
-}
-
-.chat-header {
-    font-weight: bold;
-    margin-bottom: 2px;
-    width: 100%;
-    padding-top: 4px;
-    padding-bottom: 2px;
-    border-radius: 3px 3px 0 0;
-    text-align: center;
-    background-color: var(--background3);
-    cursor: grab;
-}
-
-.chat-messages {
-    margin: 4px;
-    flex-grow: 1;
-    overflow-x: hidden;
-    overflow-y: scroll;
-}
-
-.message {
-    font-size: 0.8em;
-}
-
-.timestamp {
-    font-size: 0.6em;
-    opacity: 0.6;
-}
-
-.chat-input {
-    display: flex;
-    flex-flow: row nowrap;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 4px;
-}
-
-.chat-input > input[type='text'] {
-    flex-grow: 1;
-    margin-right: 4px;
-}
-
 #control-list, #cursors {
     position: absolute;
     top: 0;
@@ -732,4 +677,80 @@ select {
 #server-name:hover {
     text-decoration: underline;
     cursor: pointer;
+}
+
+@keyframes pop-in {
+    from {
+        transform: scale( 0.6 );
+        opacity: 0%;
+    }
+
+    to {
+        transform: scale( 1 );
+        opacity: 100%;
+    }
+}
+
+@keyframes pop-out {
+    from {
+        transform: scale( 1 );
+        opacity: 100%;
+    }
+
+    to {
+        transform: scale( 0.6 );
+        opacity: 0%;
+    }
+}
+
+.message {
+    position: absolute;
+    padding: 0.1rem 0.5rem;
+    border-radius: 0 5px 5px 5px;
+    --user-color: var(--accent);
+    background-color: var(--user-color);
+    color: var(--background);
+
+    transform-origin: top left;
+}
+
+.message.show {
+    animation: pop-in 300ms cubic-bezier(0,.14,.45,2.26) forwards;
+}
+
+.message.hide {
+    animation: pop-out 500ms cubic-bezier(0,.14,.45,2.26) forwards;
+}
+
+.message::before {
+    content: '';
+    display: block;
+    width: 0;
+    height: 0;
+    position: absolute;
+    top: -6px;
+    left: 0;
+    border: 3px solid var(--user-color);
+    border-right: 3px solid transparent;
+    border-top: 3px solid transparent;
+}
+
+.message > b {
+    color: var(--background);
+}
+
+.message input {
+    background-color: var(--accent);
+    color: var(--background);
+    margin-right: 5px;
+    border: var(--background) 1px solid;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+.message button {
+    background-color: var(--accent);
+    border: var(--background) solid 1px;
+    padding: 2px 8px;
+    padding-top: 1px;
 }

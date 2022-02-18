@@ -470,9 +470,11 @@ async function loadControlPage ( state: PageState ) {
     var controlUpdate: ((res: Extract<API.HeartbeatControlRoomUpdate, {kind: 'control-modified'}>) => any) | undefined = undefined;
     var repositionControls: (() => any) | undefined = undefined;
     var repositionCursors: (() => any) | undefined = undefined;
+    var repositionMessages: (() => any) | undefined = undefined;
     function windowResized () {
         repositionControls?.();
         repositionCursors?.();
+        repositionMessages?.();
         flexFont( share );
     }
 
@@ -707,6 +709,8 @@ async function loadControlPage ( state: PageState ) {
         }
         
         const cursorsByUser: { [uid: number]: [el: HTMLElement, user: API.ControlRoomUser] } = {};
+        var messages = new Set<{ msg: HTMLElement, x: number, y: number, uid: number }>();
+
         function layoutUser ( uid: number ) {
             var data = cursorsByUser[ uid ];
             var cursor = data[0];
@@ -750,6 +754,12 @@ async function loadControlPage ( state: PageState ) {
                 icon.classList.add( 'fa-hand-pointer' );
             }
             layoutUser( user.uid );
+
+            for ( const { msg, uid } of messages ) {
+                if ( uid == user.uid ) {
+                    msg.style.setProperty( '--user-color', user.accent );
+                }
+            }
         }
         function removeUser ( uid: number ) {
             var data = cursorsByUser[ uid ];
@@ -780,6 +790,9 @@ async function loadControlPage ( state: PageState ) {
             else if ( res.kind == 'control-modified' ) {
                 controlUpdate?.( res );
             }
+            else if ( res.kind == 'text-message' ) {
+                addMessage( res.x, res.y, res.author.uid, res.author.nickname, res.data, res.author.accent );
+            }
         };
 
         controlPage!.addEventListener( 'pointermove', e => {
@@ -792,6 +805,116 @@ async function loadControlPage ( state: PageState ) {
                 y: (e.clientY - sharebounds.y) / normalHeight 
             } );
         } );
+
+        function createMessage ( nickname: string, data: string, accent?: string ) {
+            var div = document.createElement( 'div' );
+            div.classList.add( 'message' );
+            var b = document.createElement( 'b' );
+            div.appendChild( b );
+    
+            if ( data.trim() != '' ) {
+                b.innerText = `${nickname}: `;
+                div.appendChild( document.createTextNode( data.trim() ) );
+            }
+            else {
+                b.innerText = nickname;
+            }
+    
+            if ( accent != undefined ) {
+                div.style.setProperty( '--user-color', accent );
+            }
+            return div;
+        }
+        function createOwnMessage () {
+            var div = document.createElement( 'div' );
+            div.classList.add( 'message' );
+            div.tabIndex = -1;
+            var b = document.createElement( 'b' );
+            b.innerText = `${userNickname}: `;
+            div.appendChild( b );
+            var input = document.createElement( 'input' );
+            input.type = 'text';
+            input.placeholder = 'Type a message...';
+            div.appendChild( input );
+            var send = document.createElement( 'button' );
+            var icon = document.createElement( 'i' );
+            icon.classList.add( 'fa-solid', 'fa-share' );
+            send.appendChild( icon );
+            div.appendChild( send );
+    
+            return div;
+        }
+        function addMessage ( x: number, y: number, author: number, nickname: string, data: string, accent?: string ) {
+            var msg = createMessage( nickname, data, accent );
+            msg.style.top = yOffset + y * normalHeight + 'px';
+            msg.style.left = xOffset + x * normalWidth + 'px';
+            var obj = { msg, x, y, uid: author };
+            messages.add( obj );
+            controlPage!.appendChild( msg );
+            msg.classList.add( 'show' );
+            setTimeout( () => {
+                msg.classList.remove( 'show' );
+                msg.classList.add( 'hide' );
+                setTimeout( () => {
+                    msg.remove();
+                    messages.delete( obj );
+                }, 2000 );
+            }, Math.min( 2000 + 100 * data.length, 10 * 1000 ) );
+        }
+        function onContextMenu ( e: MouseEvent ) {
+            var msg = createOwnMessage();
+            var sharebounds = share.getBoundingClientRect();
+            var x = (e.clientX - sharebounds.x) / normalWidth;
+            var y = (e.clientY + 6 - sharebounds.y) / normalHeight;
+            msg.style.top = yOffset + y * normalHeight + 'px';
+            msg.style.left = xOffset + x * normalWidth + 'px';
+            controlPage!.appendChild( msg );
+            var data = { msg, x, y, uid: -1 };
+            messages.add( data );
+    
+            let focused = false;
+            msg.querySelector( 'input' )!.focus();
+            msg.addEventListener( 'focusin', e => {
+                focused = true;
+            } );
+            msg.addEventListener( 'focusout', e => {
+                focused = false;
+                setTimeout( () => {
+                    if ( !focused ) {
+                        msg.remove();
+                        messages.delete( data );
+                    }
+                }, 0 );
+            } );
+            function send () {
+                var text = msg.querySelector( 'input' )!.value;
+                msg.remove();
+                messages.delete( data );
+                addMessage( x, y, -1, userNickname!, text );
+                sockets.message<API.MessageSentText>( { type: 'sent-text', message: text, x: x, y: y } );
+            }
+            msg.addEventListener( 'keydown', e => {
+                if ( e.key.toLowerCase() == 'enter' ) {
+                    send();
+                }
+            } );
+            msg.querySelector( 'button' )!.addEventListener( 'click', send );
+            e.preventDefault();
+        }
+
+        repositionMessages = () => {
+            for ( const { msg, x, y } of messages ) {
+                msg.style.top = yOffset + y * normalHeight + 'px';
+                msg.style.left = xOffset + x * normalWidth + 'px';
+            }
+        };
+
+        mainBody!.addEventListener( 'contextmenu', onContextMenu );
+        var oldRemoved = controlPageRemoved;
+        controlPageRemoved = () => {
+            oldRemoved?.();
+            mainBody!.removeEventListener( 'contextmenu', onContextMenu );
+        }
     } );
 
     mainBody!.appendChild( controlPage );

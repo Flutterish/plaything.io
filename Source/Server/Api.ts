@@ -89,6 +89,12 @@ export namespace API {
         y: number,
         cursorStyle?: CursorType
     } & SessionRequest
+    export type MessageSentText = {
+        type: 'sent-text',
+        x: number,
+        y: number,
+        message: string
+    } & SessionRequest
     export type MessageModifiedControl = {
         type: 'modified-control',
         controlId: number,
@@ -96,7 +102,7 @@ export namespace API {
         hovered?: boolean,
         active?: boolean
     } & SessionRequest
-    type MessageTypes = AliveAck | MessageMovedPointer | MessageModifiedControl | MessageLeaveRoom
+    type MessageTypes = AliveAck | MessageMovedPointer | MessageSentText | MessageModifiedControl | MessageLeaveRoom
     export type Message = Extract<MessageTypes, {type: string}>
 
     export type ResponseLoginInfo = {
@@ -175,6 +181,12 @@ export namespace API {
     } | {
         kind: 'control-modified',
         control: ControlRoomControl
+    } | {
+        kind: 'text-message',
+        x: number,
+        y: number,
+        data: string,
+        author: { nickname: string, uid: number, accent: string }
     })
     type HeartbeatTypes = HeartbeatUsers | HeartbeatControlRoomUpdate
     export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>

@@ -477,6 +477,20 @@ const ApiHandlers: {
                         control => sendUpdate( control )
                     );
 
+                    function messageSubscription ( data: [user: User, msg: API.MessageSentText] ) {
+                        if ( data[0] == session.user ) return;
+
+                        ws!.send<API.HeartbeatControlRoomUpdate>( {
+                            type: 'hearthbeat-control-room',
+                            kind: 'text-message',
+                            data: data[1].message,
+                            x: data[1].x,
+                            y: data[1].y,
+                            author: { uid: data[0].UID, nickname: data[0].nickname, accent: data[0].accent.Value }
+                        } );
+                    }
+                    room.messageSent.addEventListener( messageSubscription );
+
                     var cancel = room.entryRemoved.addOnceWhen(
                         s => s.user == session.user,
                         s => {
@@ -487,6 +501,7 @@ const ApiHandlers: {
                     wsSubscriptions.createSubscription( ws, 'control-room', () => {
                         roomSubscription.unsubscribe();
                         controlSubscription.unsubscribe();
+                        room.messageSent.removeEventListener( messageSubscription );
                         cancel();
                     } );
                 }
@@ -547,6 +562,14 @@ const MessageHandlers: {
         if ( room != undefined ) {
             room.leave( session.user );
             session.user.room.Value = undefined;
+        }
+    } ),
+
+    'sent-text': SessionHandler( async ( session, req, ws ) => {
+        var room = session.user.room.Value;
+        
+        if ( room != undefined ) {
+            room.handleUserSentMessage( session.user, req );
         }
     } ),
 };
