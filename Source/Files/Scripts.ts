@@ -453,6 +453,7 @@ async function loadControlPage ( state: PageState ) {
     var share = template.querySelector( '.share' ) as HTMLElement;
     var controlList = template.querySelector( '#control-list' ) as HTMLElement;
     var cursors = template.querySelector( '#cursors' ) as HTMLElement;
+    var messagesContainer = template.querySelector( '#messages' ) as HTMLElement;
     var topbar = mainBody!.querySelector( '.topbar-left' ) as HTMLElement;
     var chevron = document.createElement( 'i' );
     chevron.classList.add( 'fa-solid' );
@@ -536,6 +537,23 @@ async function loadControlPage ( state: PageState ) {
                 updateVisual();
 
                 sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value, timestamp: Date.now() } );
+            } );
+            let istouch = false;
+            inner.addEventListener( 'mousedown', e => istouch = false );
+            inner.addEventListener( 'touchstart', e => istouch = true );
+            inner.addEventListener( 'contextmenu', e => {
+                if ( istouch ) {
+                    function onUp () {
+                        value = !value;
+                        updateVisual();
+        
+                        sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value, timestamp: Date.now() } );
+                        inner.removeEventListener( 'touchend', onUp );
+                    }
+                    inner.addEventListener( 'touchend', onUp );
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
             } );
 
             updateVisual();
@@ -795,7 +813,7 @@ async function loadControlPage ( state: PageState ) {
             }
         };
 
-        controlPage!.addEventListener( 'pointermove', e => {
+        function handlePointer ( e: PointerEvent ) {
             var sharebounds = share.getBoundingClientRect();
             var style = getComputedStyle(e.target as HTMLElement).cursor || 'default';
             sockets.message<API.MessageMovedPointer>( { 
@@ -804,7 +822,11 @@ async function loadControlPage ( state: PageState ) {
                 x: (e.clientX - sharebounds.x) / normalWidth, 
                 y: (e.clientY - sharebounds.y) / normalHeight 
             } );
-        } );
+        }
+
+        controlPage!.addEventListener( 'pointerdown', handlePointer );
+        controlPage!.addEventListener( 'pointermove', handlePointer );
+        controlPage!.addEventListener( 'pointerup', handlePointer );
 
         function createMessage ( nickname: string, data: string, accent?: string ) {
             var div = document.createElement( 'div' );
@@ -850,7 +872,7 @@ async function loadControlPage ( state: PageState ) {
             msg.style.left = xOffset + x * normalWidth + 'px';
             var obj = { msg, x, y, uid: author };
             messages.add( obj );
-            controlPage!.appendChild( msg );
+            messagesContainer.appendChild( msg );
             msg.classList.add( 'show' );
             setTimeout( () => {
                 msg.classList.remove( 'show' );
@@ -868,7 +890,7 @@ async function loadControlPage ( state: PageState ) {
             var y = (e.clientY + 6 - sharebounds.y) / normalHeight;
             msg.style.top = yOffset + y * normalHeight + 'px';
             msg.style.left = xOffset + x * normalWidth + 'px';
-            controlPage!.appendChild( msg );
+            messagesContainer.appendChild( msg );
             var data = { msg, x, y, uid: -1 };
             messages.add( data );
     

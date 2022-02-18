@@ -35,11 +35,11 @@ export abstract class ControlInstance<T extends Control.Any, Tvalue> {
     }
 
     TrySet ( value: any, timestamp?: number ) {
-        timestamp ??= Date.now();
-        if ( timestamp >= this.lastEditTimestamp ) {
-            this.lastEditTimestamp = timestamp;
+        //timestamp ??= Date.now();
+        //if ( timestamp >= this.lastEditTimestamp ) {
+            //this.lastEditTimestamp = timestamp;
             this.Set( value );
-        }
+        //}
     }
 
     protected abstract Set ( value: any ): any;

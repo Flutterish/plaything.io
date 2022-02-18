@@ -3,4 +3,5 @@
         <div id="control-list"></div>
     </div>
     <div id="cursors"></div>
+    <div id="messages"></div>
 </div>

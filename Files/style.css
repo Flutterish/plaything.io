@@ -351,6 +351,8 @@ b:hover {
     padding: 16px;
     flex-grow: 1;
     position: relative;
+    touch-action: pinch-zoom;
+    overscroll-behavior: contain;
 }
 
 .listing {
@@ -493,7 +495,7 @@ select {
     color: var(--select-color);
 }
 
-#control-list, #cursors {
+#control-list, #cursors, #messages {
     position: absolute;
     top: 0;
     left: 0;
@@ -501,7 +503,7 @@ select {
     height: 100%;
 }
 
-#cursors {
+#cursors, #messages {
     pointer-events: none;
     overflow: hidden;
 }
@@ -712,6 +714,10 @@ select {
     color: var(--background);
 
     transform-origin: top left;
+
+    display: flex;
+    flex-flow: row nowrap;
+    gap: 4px;
 }
 
 .message.show {
@@ -742,7 +748,6 @@ select {
 .message input {
     background-color: var(--accent);
     color: var(--background);
-    margin-right: 5px;
     border: var(--background) 1px solid;
     box-shadow: none;
     margin-bottom: 0;
