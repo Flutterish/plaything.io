@@ -1,13 +1,14 @@
 import express from 'express';
 import { AllowAnonymousAccess, getUser, MakeAnonUser, verifyUser } from './Whitelist.js';
 import CreateSessionPool from './Session.js';
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer } from 'ws';
+import { Socket, WrapSocket } from './Socket.js';
 import { API, RequestResponseMap, Uncertain } from './Api';
-import { FreeLogFile, Log, LogConnection, LogUser, LogWithSource } from './Logger.js';
+import { FreeLogFile, LogConnection, LogUser } from './Logger.js';
 import { User, CreateUserPool, UserSession, CreateActiveUserPool } from './User.js';
 import { SessionKey } from './Session';
-import { PoolSubscription, CreatePoolSubscription, SubscribeablePool, CreateWebsocketSubscriptionManager } from './Subscription.js';
-import { Room, CreateRoom, RoomSession } from './Room.js';
+import { CreatePoolSubscription, SubscribeablePool, CreateWebsocketSubscriptionManager } from './Subscription.js';
+import { Room, CreateRoom } from './Room.js';
 import { RoomControlInstance } from './Room';
 
 const app = express();
@@ -35,9 +36,9 @@ activeUsers.entryRemoved.addEventListener( user => {
     LogUser( user, `is no longer active` );
 } );
 
-const wsSessions = new Map<WebSocket, SessionKey>();
+const wsSessions = new Map<Socket, SessionKey>();
 const wsSubscriptions = CreateWebsocketSubscriptionManager();
-function getSessionKey ( ws?: WebSocket, falllback?: SessionKey ) {
+function getSessionKey ( ws?: Socket, falllback?: SessionKey ) {
     return ( ws == undefined ? undefined : wsSessions.get( ws ) ) ?? falllback;
 }
 
@@ -80,7 +81,7 @@ app.get( '/api/*', async (req, res) => {
         };
         res.setHeader( 'content-type', 'application/json' );
         LogConnection( req.ip, 'out', error );
-        res.send( JSON.stringify( error ) );
+        res.send( error );
         res.end();
         return;
     }
@@ -90,7 +91,7 @@ app.get( '/api/*', async (req, res) => {
     var data = await processRequest( request );
     if ( data != undefined ) {
         LogConnection( req.ip, 'out', data );
-        res.send( JSON.stringify( data ) );
+        res.send( data );
     }
     res.end();
 } );
@@ -108,13 +109,14 @@ wss.addListener( 'connection', (ws, req) => {
     var address = req.socket.remoteAddress ?? '???';
     LogConnection( address, 'in', `Client established a websocket` );
 
+    var socket = WrapSocket( ws );
     ws.addEventListener( 'close', e => {
         LogConnection( address, 'in', `Closed a websocket connection because:`, e.reason || '<no reason provided>' );
-        var key = wsSessions.get( ws );
+        var key = wsSessions.get( socket );
         if ( key != undefined ) {
             loginSessions.getSession( key )!.isActive.Value = false;
         }
-        wsSessions.delete( ws );
+        wsSessions.delete( socket );
         FreeLogFile( address );
     } );
     ws.addEventListener( 'error', err => {
@@ -131,13 +133,13 @@ wss.addListener( 'connection', (ws, req) => {
                     error: 'Invalid request',
                     id: data?.id
                 };
-                ws.send( JSON.stringify( r ) );
+                socket.send( r );
                 LogConnection( address, 'out', r );
             }
             else {
-                processRequest( data, ws ).then( res => {
+                processRequest( data, socket ).then( res => {
                     if ( res != undefined ) {
-                        ws.send( JSON.stringify( res ) );
+                        socket.send( res );
                         LogConnection( address, 'out', res );
                     }
                 } );
@@ -149,7 +151,7 @@ wss.addListener( 'connection', (ws, req) => {
                 error: 'Invalid request',
                 id: data?.id
             };
-            ws.send( JSON.stringify( r ) );
+            socket.send( r );
             LogConnection( address, 'out', r );
         }
     } );
@@ -174,7 +176,7 @@ function isSessionValid ( key?: string ): key is string {
 }
 
 
-async function processRequest (req: (API.Request & { id?: number }) | API.Message, ws?: WebSocket): Promise<(API.Response & { id?: number } | void)> {
+async function processRequest (req: (API.Request & { id?: number }) | API.Message, ws?: Socket): Promise<(API.Response & { id?: number } | void)> {
     if ( ws != undefined || 'sessionKey' in req ) {
         var key = getSessionKey( ws, (req as any).sessionKey );
         if ( isSessionValid( key ) ) {
@@ -186,12 +188,12 @@ async function processRequest (req: (API.Request & { id?: number }) | API.Messag
 
     if ( req.type in MessageHandlers ) {
         // @ts-ignore
-        var handler = MessageHandlers[req.type] as (req: API.Message, ws?: WebSocket) => Promise<void>;
+        var handler = MessageHandlers[req.type] as (req: API.Message, ws?: Socket) => Promise<void>;
         await handler( req as API.Message, ws );
     }
     else if ( req.type in ApiHandlers ) {
         // @ts-ignore
-        var handler = ApiHandlers[req.type] as (req: API.Request, ws?: WebSocket) => Promise<API.Response>;
+        var handler = ApiHandlers[req.type] as (req: API.Request, ws?: Socket) => Promise<API.Response>;
         // @ts-ignore
         var val = await handler( req, ws ) as API.Response & { id?: number };
         // @ts-ignore
@@ -209,7 +211,7 @@ async function processRequest (req: (API.Request & { id?: number }) | API.Messag
 }
 
 const ApiHandlers: {
-    [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>, ws?: WebSocket) => Promise<RequestResponseMap[Key]>
+    [Key in API.Request['type']]: (req: Uncertain<Extract<API.Request, { type: Key }>>, ws?: Socket) => Promise<RequestResponseMap[Key]>
 } = {
     'server-information': async req => {
         return {
@@ -316,19 +318,19 @@ const ApiHandlers: {
     'subscibe-users': SessionHandler( async ( session, req, ws ) => {
         if ( wsSubscriptions.canSubscribe( ws, 'users' ) ) {
             function addOrUpdate ( user: User, kind: 'added' | 'updated' ) {
-                ws!.send( JSON.stringify( {
+                ws!.send( {
                     type: 'heartbeat-users',
                     kind: kind,
                     user: { uid: user.UID, nickname: user.nickname, location: user.room.Value?.name ?? serverName, accent: user.accent.Value }
-                } as API.HeartbeatUsers ) );
+                } );
             }
 
             function remove ( user: User ) {
-                ws!.send( JSON.stringify( {
+                ws!.send( {
                     type: 'heartbeat-users',
                     kind: 'removed',
                     uid: user.UID
-                } as API.HeartbeatUsers ) );
+                } );
             }
 
             var subscription = CreatePoolSubscription<User>(
@@ -418,21 +420,21 @@ const ApiHandlers: {
                 if ( wsSubscriptions.canSubscribe( ws, 'control-room' ) ) {
                     function joinOrUpdate ( user: User, kind: 'user-joined' | 'user-updated' ) {
                         var session = room.getSession( user )!;
-                        ws!.send( JSON.stringify( {
+                        ws!.send( {
                             type: 'hearthbeat-control-room',
                             kind: kind,
                             user: { uid: user.UID, nickname: user.nickname, accent: user.accent.Value, x: session.position.Value[0], y: session.position.Value[1], pointer: session.cursorStyle.Value }
-                        } as API.HeartbeatControlRoomUpdate ) )
+                        } )
                     }
 
                     var roomSubscription = CreatePoolSubscription<User>( 
                         room.activePool,
                         (user, scan) => { if ( !scan && user != session.user ) joinOrUpdate( user, 'user-joined' ) },
-                        user => { if ( user != session.user ) ws.send( JSON.stringify( {
+                        user => { if ( user != session.user ) ws.send( {
                             type: 'hearthbeat-control-room',
                             kind: 'user-left',
                             uid: user.UID
-                        } as API.HeartbeatControlRoomUpdate ) ) }
+                        } ) }
                     ).ReactTo( 
                         x => x.accent, 
                         (user, v) => { if ( user != session.user ) joinOrUpdate( user, 'user-updated' ) }
@@ -445,11 +447,11 @@ const ApiHandlers: {
                     );
 
                     function sendUpdate ( control: RoomControlInstance ) {
-                        ws!.send( JSON.stringify( {
+                        ws!.send( {
                             type: 'hearthbeat-control-room',
                             kind: 'control-modified',
                             control: { controlId: control.id, state: control.control.State.Value, hovered: control.isHovered.Value, active: control.isActive.Value }
-                        } as API.HeartbeatControlRoomUpdate ) );
+                        } );
                     }
 
                     var controlSubscription = CreatePoolSubscription<RoomControlInstance>(
@@ -498,7 +500,7 @@ const ApiHandlers: {
     } )
 };
 
-function SessionHandler<Treq extends API.SessionRequest, Tres> ( code: (session: UserSession, req: Treq, ws?: WebSocket) => Promise<Tres> ): (( req: Treq, ws?: WebSocket ) => Promise<Tres | API.InvalidSession>) {
+function SessionHandler<Treq extends API.SessionRequest, Tres> ( code: (session: UserSession, req: Treq, ws?: Socket) => Promise<Tres> ): (( req: Treq, ws?: Socket ) => Promise<Tres | API.InvalidSession>) {
     return async (req, ws) => {
         var key = getSessionKey( ws, req.sessionKey );
         if ( isSessionValid( key ) ) {
@@ -511,7 +513,7 @@ function SessionHandler<Treq extends API.SessionRequest, Tres> ( code: (session:
 }
 
 const MessageHandlers: {
-    [Key in API.Message['type']]: (req: Uncertain<Extract<API.Message, { type: Key }>>, ws?: WebSocket) => Promise<unknown>
+    [Key in API.Message['type']]: (req: Uncertain<Extract<API.Message, { type: Key }>>, ws?: Socket) => Promise<unknown>
 } = {
     'alive': async (req, ws) => { },
 

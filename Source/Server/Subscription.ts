@@ -1,7 +1,6 @@
-import WebSocket from "ws";
-import { CreateEvent, Event } from "./Events.js";
+import { Event } from "./Events.js";
 import { Reactive } from "./Reactive.js";
-import { HasUserActivity } from "./User.js";
+import { Socket } from './Socket';
 
 export type PoolSubscription<Tsession> = {
     unsubscribe: () => any,
@@ -101,17 +100,17 @@ export function CreatePoolSubscription<Tsession> (
 
 export function CreateWebsocketSubscriptionManager () {
     const keys = Symbol('keys');
-    var wsMap = new Map<WebSocket, {[keys]: number, [key: string]: () => any}>();
+    var wsMap = new Map<Socket, {[keys]: number, [key: string]: () => any}>();
 
     var manager = {
-        canSubscribe: (ws: WebSocket | undefined, name: string): ws is WebSocket => {
+        canSubscribe: (ws: Socket | undefined, name: string): ws is Socket => {
             return ws != undefined && !manager.subscriptionExists( ws, name );
         },
-        subscriptionExists: (ws: WebSocket, name: string) => {
+        subscriptionExists: (ws: Socket, name: string) => {
             var map = wsMap.get( ws );
             return map != undefined && map[name] != undefined;
         },
-        createSubscription: (ws: WebSocket, name: string, unsub: () => any) => {
+        createSubscription: (ws: Socket, name: string, unsub: () => any) => {
             if ( !wsMap.has( ws ) ) {
                 wsMap.set( ws, { [keys]: 0 } );
             }
@@ -127,13 +126,14 @@ export function CreateWebsocketSubscriptionManager () {
                 if ( map[keys] == 0 ) {
                     wsMap.delete( ws );
                 }
+                ws.raw.removeEventListener( 'close', remove );
                 unsub();
             }
 
             map[name] = remove;
-            ws.addEventListener( 'close', remove );
+            ws.raw.addEventListener( 'close', remove );
         },
-        removeSubscription: (ws: WebSocket, name: string) => {
+        removeSubscription: (ws: Socket, name: string) => {
             var map = wsMap.get( ws );
             if ( map != undefined && map[name] != undefined ) {
                 map[name]();
