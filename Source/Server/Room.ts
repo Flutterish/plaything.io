@@ -4,6 +4,7 @@ import { Reactive } from "./Reactive.js";
 import { SubscribeablePool } from "./Subscription.js";
 import { CreateActiveUserPool, User } from "./User.js";
 import { API, Uncertain } from './Api';
+import { LogUser } from "./Logger.js";
 
 export type RoomControlInstance = {
     id: number,
@@ -65,10 +66,12 @@ export function CreateRoom ( name: string, controls: AnyControlInstance[] ): Roo
                     }
                 } );
                 roomSessionsByUser[ user.UID ].isActive.AddOnValueChanged( v => {
+                    LogUser( user, `became ${v ? 'active' : 'inactive'} in room '${room.name}'` );
                     if ( !v ) {
                         instances.setUserAction( user, undefined );
                     }
                 } );
+                LogUser( user, `joined room '${room.name}'` );
                 entryAddedTrigger( roomSessionsByUser[ user.UID ] );
                 return true;
             }
@@ -84,6 +87,7 @@ export function CreateRoom ( name: string, controls: AnyControlInstance[] ): Roo
             session.isUserActive.UnbindAll();
             session.isActive.RemoveEvents();
             session.isActive.UnbindAll();
+            LogUser( user, `left room '${room.name}'` );
             entryRemovedTrigger( session );
         },
         getValues: () => Object.values( roomSessionsByUser ),
