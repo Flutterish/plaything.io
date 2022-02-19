@@ -3,3 +3,5 @@ package-lock.json
 Build/
 *.js
 d.ts/*
+bin/
+obj/
