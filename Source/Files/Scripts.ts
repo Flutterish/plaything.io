@@ -667,7 +667,7 @@ async function loadControlPage ( state: PageState ) {
         // bounds.style.backgroundColor = 'red';
 
         function updateLayout () {
-            var width = window.innerWidth - 32;
+            var width = controlPage!.clientWidth - 32;
             var height = window.innerHeight - 50 - 32;
             
             var layout = computeSharedControlLayout( {
