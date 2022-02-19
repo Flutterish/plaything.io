@@ -64,6 +64,11 @@ export function CreateRoom ( name: string, controls: AnyControlInstance[] ): Roo
                         roomSessionsByUser[ user.UID ].isActive.Value = false;
                     }
                 } );
+                roomSessionsByUser[ user.UID ].isActive.AddOnValueChanged( v => {
+                    if ( !v ) {
+                        instances.setUserAction( user, undefined );
+                    }
+                } );
                 entryAddedTrigger( roomSessionsByUser[ user.UID ] );
                 return true;
             }
@@ -73,10 +78,12 @@ export function CreateRoom ( name: string, controls: AnyControlInstance[] ): Roo
             if ( session == undefined ) {
                 return;
             }
+            instances.setUserAction( user, undefined );
+            delete roomSessionsByUser[ user.UID ];
             session.isUserActive.RemoveEvents();
             session.isUserActive.UnbindAll();
-            delete roomSessionsByUser[ user.UID ];
-            instances.setUserAction( user, undefined );
+            session.isActive.RemoveEvents();
+            session.isActive.UnbindAll();
             entryRemovedTrigger( session );
         },
         getValues: () => Object.values( roomSessionsByUser ),

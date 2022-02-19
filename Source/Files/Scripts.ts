@@ -363,11 +363,6 @@ async function loadDevicesPage ( state: PageState ) {
     var usercount = 0;
     var users: { [uid: number]: [HTMLElement, Text, HTMLElement] } = {};
     function addUser ( nick: string, location: string, uid: number, accent: string ) {
-        if ( users[ uid ] != undefined ) {
-            updateUser( uid, location, accent );
-            return;
-        }
-
         if ( nooneText != undefined ) {
             nooneText.remove();
             nooneText = undefined;
@@ -384,9 +379,6 @@ async function loadDevicesPage ( state: PageState ) {
         usercount++;
     }
     function removeUser ( uid: number ) {
-        if ( users[ uid ] == undefined )
-            return;
-
         var [b, text, br] = users[ uid ];
         b.remove();
         text.remove();
@@ -400,9 +392,6 @@ async function loadDevicesPage ( state: PageState ) {
         }
     }
     function updateUser ( uid: number, location: string, accent: string ) {
-        if ( users[ uid ] == undefined )
-            return;
-
         var [b, text, br] = users[ uid ];
         text.nodeValue = ` @ ${location}`;
         b.style.setProperty( '--accent', accent );
