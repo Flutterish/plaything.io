@@ -366,6 +366,7 @@ const ApiHandlers: {
                 user => user.accent, 
                 user => addOrUpdate( user, 'updated' )
             ).ReactTo( 
+                // TODO hide if the user doenst have access to it
                 user => user.room,   
                 user => addOrUpdate( user, 'updated' )
             );
@@ -376,7 +377,7 @@ const ApiHandlers: {
         return {
             result: 'ok',
             users: activeUsers.getValues().filter( x => x != session.user )
-                .map( x => ({ nickname: x.nickname, location: x.room.Value?.name ?? serverName, uid: x.UID, accent: x.accent.Value }) )   
+                .map( x => ({ nickname: x.nickname, location: x.room.Value?.name ?? serverName /* TODO hide if the user doenst have access to it */, uid: x.UID, accent: x.accent.Value }) )   
         }
     } ),
 

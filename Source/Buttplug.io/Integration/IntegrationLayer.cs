@@ -1,9 +1,11 @@
 ﻿using Buttplug;
+using Integration.Heartbeats;
 using System;
 using System.Collections.Concurrent;
-using System.Net.WebSockets;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Websocket.Client;
 
 namespace Integration {
 	public class IntegrationLayer {
@@ -14,23 +16,22 @@ namespace Integration {
 			Name = name;
 			this.port = port;
 			client = new( name );
-			ws = new ClientWebSocket();
-			ws.Options.KeepAliveInterval = TimeSpan.FromSeconds( 10 );
 		}
 
 		readonly ButtplugClient client;
-		readonly ClientWebSocket ws;
+		WebsocketClient? ws;
 		ConcurrentQueue<object> wsMessages = new();
-
-		async Task connect () {
-			var address = $"ws://localhost:{port}";
-			Console.WriteLine( $"Connecting WebSocket ({address})..." );
-			// BUG: this hangs if it cant connect immediately
-			await ws.ConnectAsync( new Uri( address ), new() );
-			Console.WriteLine( "Connected WebSocket!" );
-		}
+		Dictionary<uint, ButtplugClientDevice> devicesByIndex = new();
 
 		async Task keepWebsocketAlive () {
+			var address = $"ws://localhost:{port}";
+			Console.WriteLine( $"Connecting WebSocket ({address})..." );
+			ws = new WebsocketClient( new Uri( address ) );
+			ws.ReconnectTimeout = TimeSpan.FromSeconds( 10 );
+			await ws.Start();
+			Console.WriteLine( "Connected WebSocket!" );
+			listenToCommands( ws );
+
 			var serializerOptions = new JsonSerializerOptions {
 				IncludeFields = true,
 				DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
@@ -38,16 +39,49 @@ namespace Integration {
 			};
 
 			while ( true ) {
-				if ( ws.State is not WebSocketState.Open ) {
-					await connect();
-				}
-
 				while ( wsMessages.TryDequeue( out var message ) ) {
-					var data = JsonSerializer.SerializeToUtf8Bytes( message, serializerOptions );
-					await ws.SendAsync( data, WebSocketMessageType.Text, true, new() );
+					ws.Send( JsonSerializer.Serialize( message, serializerOptions ) );
 				}
 				await Task.Delay( 10 );
 			}
+		}
+
+		void listenToCommands ( WebsocketClient ws ) {
+			var serializerOptions = new JsonSerializerOptions {
+				IncludeFields = true,
+				DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+				PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+			};
+
+			ws.MessageReceived.Subscribe( data => {
+				Console.WriteLine( data.Text );
+				var msg = JsonSerializer.Deserialize<HeartbeatType>( data.Text, serializerOptions );
+				if ( msg?.Type is null ) {
+					return;
+				}
+
+				var type = msg.Type;
+				if ( type == PowerOff.Type ) {
+					var command = JsonSerializer.Deserialize<PowerOff>( data.Text, serializerOptions )!;
+					if ( devicesByIndex.TryGetValue( command.Index, out var device ) ) {
+						device.SendStopDeviceCmd();
+					}
+				}
+				else if ( type == Vibrate.Type ) {
+					var command = JsonSerializer.Deserialize<Vibrate>( data.Text, serializerOptions )!;
+					if ( devicesByIndex.TryGetValue( command.Index, out var device ) ) {
+						if ( command.SpeedsByFeature != null ) {
+							device.SendVibrateCmd( command.SpeedsByFeature );
+						}
+						else if ( command.Speeds != null ) {
+							device.SendVibrateCmd( command.Speeds );
+						}
+						else {
+							device.SendVibrateCmd( command.Speed ?? 0 );
+						}
+					}
+				}
+			} );
 		}
 
 		public async Task Run () {
@@ -57,6 +91,7 @@ namespace Integration {
 
 			client.DeviceAdded += ( sender, args ) => {
 				var device = args.Device;
+				devicesByIndex.Add( device.Index, device );
 				Console.WriteLine( $"Device added: {device.Name}" );
 				Console.WriteLine( $"Index: {device.Index}" );
 				Console.WriteLine( "Supported features:" );
@@ -75,6 +110,7 @@ namespace Integration {
 			};
 			client.DeviceRemoved += ( sender, args ) => {
 				var device = args.Device;
+				devicesByIndex.Remove( device.Index );
 				Console.WriteLine( $"Device removed: {device.Name}" );
 
 				wsMessages.Enqueue( new { Type = "device-removed", Index = device.Index } );

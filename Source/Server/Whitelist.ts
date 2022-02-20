@@ -25,7 +25,7 @@ function makeUserSync ( nick: string, pass?: string, ...devicePools: Subscribeab
 }
 
 export async function getUser ( nickname: string ): Promise<User | undefined> {
-    return WhitelistedUsers[ nickname.toLowerCase() ];
+    return GetWhitelist()[ nickname.toLowerCase() ];
 }
 
 export async function verifyUser ( user: User, pass: string ) {
@@ -45,9 +45,20 @@ export function MakeAnonUser ( nickname: string ): User {
     return makeUserSync( nickname, undefined, AnonymousPermitedDevices, buttplugServer.devices );
 }
 
-export const WhitelistedUsers: { [nickname: string]: User } = [
-    makeUserSync( 'Peri', 'password12345', AnonymousPermitedDevices, buttplugServer.devices )
-].reduce( (obj, next) => {
-    obj[next.nickname.toLowerCase()] = next;
-    return obj;
-}, {} as { [nickname: string]: User } );
+function createWhitelist () {
+    return [
+        makeUserSync( 'Peri', 'password12345', AnonymousPermitedDevices, buttplugServer.devices )
+    ].reduce( (obj, next) => {
+        obj[next.nickname.toLowerCase()] = next;
+        return obj;
+    }, {} as { [nickname: string]: User } );
+}
+
+var whitelistedUsers: { [nickname: string]: User };
+export function GetWhitelist () {
+    if ( whitelistedUsers == undefined ) {
+        whitelistedUsers = createWhitelist();
+    }
+
+    return whitelistedUsers;
+}

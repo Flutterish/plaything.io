@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Buttplug" Version="2.0.6" />
+    <PackageReference Include="Websocket.Client" Version="4.4.43" />
   </ItemGroup>
 
 </Project>
