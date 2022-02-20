@@ -1,11 +1,12 @@
 import { User } from "./User";
 import bcrypt from 'bcryptjs';
 import { Device } from "./Device";
-import { DeviceList } from "./DeviceList.js";
 import { Reactive } from "./Reactive.js";
 import { Room } from "./Room";
 import { CreateNestedPool, CreatePool, SubscribeablePool } from './Subscription.js';
 import { buttplugServer } from "./Server.js";
+import { TestDeviceList } from "./DeviceList.js";
+import fs from 'fs';
 
 var nextUID = 0;
 function makeUserSync ( nick: string, pass?: string, ...devicePools: SubscribeablePool<Device>[] ): User {
@@ -35,11 +36,7 @@ export async function verifyUser ( user: User, pass: string ) {
 }
 
 export const AllowAnonymousAccess: boolean = true;
-export const AnonymousPermitedDevices = CreatePool<Device>( [
-    DeviceList.sample1,
-    DeviceList.sample2,
-    DeviceList.sample3
-] );
+export const AnonymousPermitedDevices = CreatePool<Device>( fs.existsSync( '.dev' ) ? Object.values( TestDeviceList ) : [] );
 
 export function MakeAnonUser ( nickname: string ): User {
     return makeUserSync( nickname, undefined, AnonymousPermitedDevices, buttplugServer.devices );

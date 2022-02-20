@@ -1,6 +1,6 @@
 import { Device, ButtonInstance, SliderInstance } from "./Device.js";
 
-export const DeviceList: { [name: string]: Device } = {
+export const TestDeviceList: { [name: string]: Device } = {
     sample1: {
         ID: 'sample-device-0',
         name: 'Device A',
