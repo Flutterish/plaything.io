@@ -15,6 +15,7 @@ namespace Integration {
 			this.port = port;
 			client = new( name );
 			ws = new ClientWebSocket();
+			ws.Options.KeepAliveInterval = TimeSpan.FromSeconds( 10 );
 		}
 
 		readonly ButtplugClient client;
@@ -24,6 +25,7 @@ namespace Integration {
 		async Task connect () {
 			var address = $"ws://localhost:{port}";
 			Console.WriteLine( $"Connecting WebSocket ({address})..." );
+			// BUG: this hangs if it cant connect immediately
 			await ws.ConnectAsync( new Uri( address ), new() );
 			Console.WriteLine( "Connected WebSocket!" );
 		}

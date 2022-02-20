@@ -21,7 +21,8 @@ export type SubscribeablePool<Tsession> = {
 
 export type ManagedPool<T> = SubscribeablePool<T> & {
     add: (value: T) => any,
-    remove: (value: T) => any
+    remove: (value: T) => any,
+    clear: () => any
 }
 
 export function CreatePool<T> ( values?: T[] ): ManagedPool<T> {
@@ -43,6 +44,13 @@ export function CreatePool<T> ( values?: T[] ): ManagedPool<T> {
             if ( index != -1 ) {
                 entries.splice( index, 1 );
                 entryRemovedTrigger( value );
+            }
+        },
+        clear: () => {
+            var old = entries;
+            entries = [];
+            for ( const e of old ) {
+                entryRemovedTrigger( e );
             }
         }
     };

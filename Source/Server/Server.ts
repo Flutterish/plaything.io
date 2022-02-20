@@ -23,7 +23,7 @@ const loggedInUsers = CreateUserPool( loginSessions );
 const activeUsers = CreateActiveUserPool( loginSessions );
 
 const roomsByDeviceId: { [id: string]: Room & { activePool: SubscribeablePool<User> } } = {};
-const buttplugServer = CreateButtplugServer( 8081 );
+export const buttplugServer = CreateButtplugServer( 8081 );
 
 activeUsers.entryAdded.addEventListener( user => {
     user.lastActive = Date.now();
@@ -443,6 +443,7 @@ const ApiHandlers: {
 
             if ( session.user.room.Value == room || room.join( session.user ) ) {
                 session.user.room.Value = room;
+                // TODO disconnect from room if device is removed
                 if ( wsSubscriptions.canSubscribe( ws, 'control-room' ) ) {
                     function joinOrUpdate ( user: User, kind: 'user-joined' | 'user-updated' ) {
                         var session = room.getSession( user )!;

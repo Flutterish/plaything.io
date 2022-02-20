@@ -5,6 +5,7 @@ import { DeviceList } from "./DeviceList.js";
 import { Reactive } from "./Reactive.js";
 import { Room } from "./Room";
 import { CreateNestedPool, CreatePool, SubscribeablePool } from './Subscription.js';
+import { buttplugServer } from "./Server.js";
 
 var nextUID = 0;
 function makeUserSync ( nick: string, pass?: string, ...devicePools: SubscribeablePool<Device>[] ): User {
@@ -41,11 +42,11 @@ export const AnonymousPermitedDevices = CreatePool<Device>( [
 ] );
 
 export function MakeAnonUser ( nickname: string ): User {
-    return makeUserSync( nickname, undefined, AnonymousPermitedDevices );
+    return makeUserSync( nickname, undefined, AnonymousPermitedDevices, buttplugServer.devices );
 }
 
 export const WhitelistedUsers: { [nickname: string]: User } = [
-    makeUserSync( 'Peri', 'password12345', AnonymousPermitedDevices )
+    makeUserSync( 'Peri', 'password12345', AnonymousPermitedDevices, buttplugServer.devices )
 ].reduce( (obj, next) => {
     obj[next.nickname.toLowerCase()] = next;
     return obj;
