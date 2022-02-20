@@ -10,7 +10,7 @@ import fs from 'fs';
 
 var nextUID = 0;
 function makeUserSync ( nick: string, pass?: string, ...devicePools: SubscribeablePool<Device>[] ): User {
-    var devicesPool = CreatePool<SubscribeablePool<Device>>( devicePools );
+    var devicesPool = CreatePool<SubscribeablePool<Device>>( [AnonymousPermitedDevices, ...devicePools] );
     return {
         nickname: nick,
         passwordHash: pass == undefined ? undefined : bcrypt.hashSync( pass ),
@@ -36,16 +36,24 @@ export async function verifyUser ( user: User, pass: string ) {
 }
 
 export const AllowAnonymousAccess: boolean = true;
-export const AnonymousPermitedDevices = CreatePool<Device>( fs.existsSync( '.dev' ) ? Object.values( TestDeviceList ) : [] );
+export const AnonymousPermitedDevices = CreatePool<Device>( 
+    fs.existsSync( '.dev' ) 
+    ? Object.values( TestDeviceList ) 
+    : [] 
+);
 
 export function MakeAnonUser ( nickname: string ): User {
-    return makeUserSync( nickname, undefined, AnonymousPermitedDevices, buttplugServer.devices );
+    return makeUserSync( nickname, undefined, buttplugServer.devices );
 }
 
 function createWhitelist () {
-    return [
-        makeUserSync( 'Peri', 'password12345', AnonymousPermitedDevices, buttplugServer.devices )
-    ].reduce( (obj, next) => {
+    var users = fs.existsSync( '.dev' ) ? [
+        makeUserSync( 'Peri', 'password12345', buttplugServer.devices )
+    ] : [
+        
+    ]
+
+    return users.reduce( (obj, next) => {
         obj[next.nickname.toLowerCase()] = next;
         return obj;
     }, {} as { [nickname: string]: User } );

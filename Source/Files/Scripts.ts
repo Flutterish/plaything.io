@@ -973,8 +973,8 @@ currentTheme.AddOnValueChanged( v => {
 } );
 var availableThemes: Theme[] = [
     { name: 'Dracula', id: 'dracula', description: 'The default dark theme' },
-    { name: 'Cherry', id: 'cherry', description: 'A colorful light theme' },
-    { name: 'Light', id: 'light', description: 'The default light theme' },
+    // { name: 'Cherry', id: 'cherry', description: 'A colorful light theme' },
+    // { name: 'Light', id: 'light', description: 'The default light theme' },
 ];
 function cloudSaveTheme ( theme: string ) {
     localSaved?.();

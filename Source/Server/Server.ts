@@ -11,10 +11,13 @@ import { CreatePoolSubscription, SubscribeablePool, CreateWebsocketSubscriptionM
 import { Room, CreateRoom } from './Room.js';
 import { RoomControlInstance } from './Room';
 import { CreateButtplugServer } from './Buttplug.Api.js';
+import fs from 'fs';
 
 const app = express();
 const port = 8080;
-const serverName = 'sample-server';
+const serverName = fs.existsSync( '.dev' )
+    ? 'development-server'
+    : 'untitled-server';
 // sessions - a singe user can have multiple sessions
 const loginSessions = CreateSessionPool<UserSession>( 'login pool' );
 // all unique users with at least one session
