@@ -20,10 +20,24 @@ namespace Integration {
 			await client.ConnectAsync( new ButtplugEmbeddedConnectorOptions() );
 
 			client.DeviceAdded += ( sender, args ) => {
-				Console.WriteLine( $"Device added: ${args.Device.Name}" );
+				var device = args.Device;
+				Console.WriteLine( $"Device added: {device.Name}" );
+				Console.WriteLine( $"Index: {device.Index}" );
+				Console.WriteLine( "Supported features:" );
+				foreach ( var (type, attributes) in device.AllowedMessages ) {
+					Console.WriteLine( $"\tType: {type}" );
+					Console.WriteLine( $"\tFeatures: {attributes.FeatureCount}" );
+					foreach ( var duration in attributes.MaxDuration ) {
+						Console.WriteLine( $"\t\tMax duration: {duration}" );
+					}
+					foreach ( var steps in attributes.StepCount ) {
+						Console.WriteLine( $"\t\tSteps: {steps}" );
+					}
+				}
 			};
 			client.DeviceRemoved += ( sender, args ) => {
-				Console.WriteLine( $"Device removed: ${args.Device.Name}" );
+				var device = args.Device;
+				Console.WriteLine( $"Device removed: {device.Name}" );
 			};
 
 			Console.WriteLine( "Starting scan..." );
