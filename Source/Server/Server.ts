@@ -10,6 +10,7 @@ import { SessionKey } from './Session';
 import { CreatePoolSubscription, SubscribeablePool, CreateWebsocketSubscriptionManager } from './Subscription.js';
 import { Room, CreateRoom } from './Room.js';
 import { RoomControlInstance } from './Room';
+import { CreateButtplugServer } from './Buttplug.Api.js';
 
 const app = express();
 const port = 8080;
@@ -22,6 +23,7 @@ const loggedInUsers = CreateUserPool( loginSessions );
 const activeUsers = CreateActiveUserPool( loginSessions );
 
 const roomsByDeviceId: { [id: number]: Room & { activePool: SubscribeablePool<User> } } = {};
+const buttplugServer = CreateButtplugServer( 8081 );
 
 activeUsers.entryAdded.addEventListener( user => {
     user.lastActive = Date.now();
