@@ -27,7 +27,7 @@ namespace Integration {
 			var address = $"ws://localhost:{port}";
 			Console.WriteLine( $"Connecting WebSocket ({address})..." );
 			ws = new WebsocketClient( new Uri( address ) );
-			ws.ReconnectTimeout = TimeSpan.FromSeconds( 10 );
+			ws.ReconnectTimeout = null;
 			await ws.Start();
 			Console.WriteLine( "Connected WebSocket!" );
 			listenToCommands( ws );
@@ -54,7 +54,6 @@ namespace Integration {
 			};
 
 			ws.MessageReceived.Subscribe( data => {
-				Console.WriteLine( data.Text );
 				var msg = JsonSerializer.Deserialize<HeartbeatType>( data.Text, serializerOptions );
 				if ( msg?.Type is null ) {
 					return;
