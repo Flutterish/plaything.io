@@ -4,13 +4,17 @@ import { Device } from "./Device";
 import { DeviceList } from "./DeviceList.js";
 import { Reactive } from "./Reactive.js";
 import { Room } from "./Room";
+import { CreateNestedPool, CreatePool, SubscribeablePool } from './Subscription.js';
 
 var nextUID = 0;
-function makeUserSync ( nick: string, pass: string, devices: Device[] = [] ): User {
+function makeUserSync ( nick: string, pass?: string, ...devicePools: SubscribeablePool<Device>[] ): User {
+    var devicesPool = CreatePool<SubscribeablePool<Device>>( devicePools );
     return {
         nickname: nick,
-        passwordHash: bcrypt.hashSync( pass ),
-        allowedDevices: devices,
+        passwordHash: pass == undefined ? undefined : bcrypt.hashSync( pass ),
+        isAnon: pass == undefined,
+        allowedDevicePools: devicesPool,
+        allowedDevices: CreateNestedPool( devicesPool ),
         accent: new Reactive<string>( '#ff79c6' ),
         lastActive: 0,
         isActive: new Reactive<boolean>( false ),
@@ -30,22 +34,14 @@ export async function verifyUser ( user: User, pass: string ) {
 }
 
 export const AllowAnonymousAccess: boolean = true;
-export const AnonymousPermitedDevices: Device[] = [
+export const AnonymousPermitedDevices = CreatePool<Device>( [
     DeviceList.sample1,
     DeviceList.sample2,
     DeviceList.sample3
-];
+] );
+
 export function MakeAnonUser ( nickname: string ): User {
-    return {
-        nickname: nickname,
-        isAnon: true,
-        allowedDevices: AnonymousPermitedDevices,
-        accent: new Reactive<string>( '#ff79c6' ),
-        lastActive: 0,
-        isActive: new Reactive<boolean>( false ),
-        room: new Reactive<Room | undefined>( undefined ),
-        UID: nextUID++
-    };
+    return makeUserSync( nickname, undefined, AnonymousPermitedDevices );
 }
 
 export const WhitelistedUsers: { [nickname: string]: User } = [

@@ -2,7 +2,7 @@ import { Device, ButtonInstance, SliderInstance } from "./Device.js";
 
 export const DeviceList: { [name: string]: Device } = {
     sample1: {
-        ID: 0,
+        ID: 'sample-device-0',
         name: 'Device A',
         controls: [
             new ButtonInstance({
@@ -12,7 +12,7 @@ export const DeviceList: { [name: string]: Device } = {
         ]
     },
     sample2: {
-        ID: 1,
+        ID: 'sample-device-1',
         name: 'Device B',
         controls: [
             new SliderInstance({
@@ -39,7 +39,7 @@ export const DeviceList: { [name: string]: Device } = {
         ]
     },
     sample3: {
-        ID: 2,
+        ID: 'sample-device-2',
         name: 'Device C',
         controls: [
             new ButtonInstance({

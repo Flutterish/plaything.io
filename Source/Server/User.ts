@@ -1,15 +1,16 @@
 import { Device } from "./Device";
 import { CreateEvent } from "./Events.js";
 import { Reactive, CreateReactiveAggregate, ReactiveAggregate } from "./Reactive.js";
-import { SubscribeablePool } from './Subscription';
+import { ManagedPool, SubscribeablePool } from './Subscription';
 import { Room } from './Room';
 
 export type User = {
     nickname: string,
     UID: number,
-    isAnon?: true,
+    isAnon?: boolean,
     passwordHash?: string,
-    allowedDevices: Device[],
+    allowedDevicePools: ManagedPool<SubscribeablePool<Device>>,
+    allowedDevices: SubscribeablePool<Device>,
     accent: Reactive<string>,
     theme?: string,
     room: Reactive<Room | undefined>,

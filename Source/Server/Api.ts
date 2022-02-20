@@ -55,11 +55,11 @@ export namespace API {
     } & SessionRequest
     export type RequestDeviceInfo = {
         type: 'device-info',
-        deviceId: number
+        deviceId: string
     } & SessionRequest
     export type RequestJoinControlRoom = {
         type: 'join-control',
-        deviceId: number
+        deviceId: string
     } & SessionRequest
     export type SubscribeDevices = {
         type: 'subscibe-devices'
@@ -140,9 +140,10 @@ export namespace API {
     } | {
         result: 'device not found' | 'already in a different room' | 'cant join room'
     }) | InvalidSession
+    export type DeviceID = { name: string, id: string }
     export type ResponseSubscribeDevices = {
         result: 'ok',
-        devices: { name: string, id: number }[]
+        devices: DeviceID[]
     } | InvalidSession
     export type ResponseSubscribeUsers = {
         result: 'ok',
@@ -169,6 +170,15 @@ export namespace API {
         kind: 'removed',
         uid: number
     })
+    export type HeartbeatDevices = {
+        type: 'heartbeat-devices'
+    } & ({
+        kind: 'added',
+        device: DeviceID
+    } | {
+        kind: 'removed',
+        deviceId: string
+    })
     export type ControlRoomUser = { uid: number, nickname: string, accent: string, x: number, y: number, pointer: CursorType }
     export type ControlRoomControl = { controlId: number, state: any, hovered: boolean, active: boolean }
     export type HeartbeatControlRoomUpdate = {
@@ -189,6 +199,6 @@ export namespace API {
         data: string,
         author: { nickname: string, uid: number, accent: string }
     })
-    type HeartbeatTypes = HeartbeatUsers | HeartbeatControlRoomUpdate
+    type HeartbeatTypes = HeartbeatUsers | HeartbeatDevices | HeartbeatControlRoomUpdate
     export type Heartbeat = Exclude<HeartbeatTypes, {id: number}>
 };

@@ -343,20 +343,52 @@ async function loadDevicesPage ( state: PageState ) {
     var usersList = devicesPage.querySelector( '#users' ) as HTMLElement;
 
     sockets.request<API.SubscribeDevices>( { type: 'subscibe-devices' } ).then( res => {
-        for ( const device of res.devices ) {
+        var nothingText: Text | undefined;
+        var devicesById: { [id: string]: HTMLElement } = {};
+        var deviceCount = 0;
+
+        function addDevice ( device: API.DeviceID ) {
+            deviceCount++;
+            nothingText?.remove();
+            nothingText = undefined;
+
             var div = document.createElement( 'div' );
             div.classList.add( 'device' );
             div.innerText = device.name;
             listing.appendChild( div );
+            devicesById[device.id] = div;
 
             div.addEventListener( 'click', () => {
                 goToControlPage( device.id );
             } );
         }
 
-        if ( res.devices.length == 0 ) {
-            listing.append( 'Nothing!' );
+        function removeDevice ( id: string ) {
+            deviceCount--;
+            devicesById[id].remove();
+            delete devicesById[id];
+
+            if ( deviceCount == 0 ) {
+                listing.append( nothingText = document.createTextNode( 'Nothing!' ) );
+            }
         }
+
+        for ( const device of res.devices ) {
+            addDevice( device );
+        }
+
+        if ( deviceCount == 0 ) {
+            listing.append( nothingText = document.createTextNode( 'Nothing!' ) );
+        }
+
+        heartbeatHandlers.deviceUpdate = res => {
+            if ( res.kind == 'added' ) {
+                addDevice( res.device );
+            }
+            else if ( res.kind == 'removed' ) {
+                removeDevice( res.deviceId );
+            }
+        };
     } );
 
     var nooneText: Text | undefined;
@@ -423,7 +455,7 @@ async function loadDevicesPage ( state: PageState ) {
 
 var controlPageRemoved: (() => any) | undefined = undefined;
 var controlPage: HTMLElement | undefined = undefined;
-async function goToControlPage ( id: number ) {
+async function goToControlPage ( id: string ) {
     if ( !isLoggedIn() ) {
         goToLoginPage();
         return;    
@@ -434,7 +466,7 @@ async function goToControlPage ( id: number ) {
 async function loadControlPage ( state: PageState ) {
     await onMainBody();
 
-    var id = state.params[0] as number;
+    var id = state.params[0] as string;
 
     var template = createTemplate( state.html );
     controlPage = template.childNodes[0] as HTMLElement;

@@ -14,7 +14,8 @@ function cleanSessionInfo () {
 
 export type HeartbeatHandlers = {
     userList?: (e: API.HeartbeatUsers) => any,
-    roomUpdate?: (e: API.HeartbeatControlRoomUpdate) => any,
+    deviceUpdate?: (e: API.HeartbeatDevices) => any,
+    roomUpdate?: (e: API.HeartbeatControlRoomUpdate) => any
 };
 export const heartbeatHandlers: HeartbeatHandlers = {};
 
@@ -50,6 +51,9 @@ export const sockets = Workers.get<API.Request, API.Response, API.Message, Socke
     }
     else if ( heartbeat.type == 'heartbeat-users' ) {
         heartbeatHandlers.userList?.( heartbeat );
+    }
+    else if ( heartbeat.type == 'heartbeat-devices' ) {
+        heartbeatHandlers.deviceUpdate?.( heartbeat );
     }
     else if ( heartbeat.type == 'hearthbeat-control-room' ) {
         heartbeatHandlers.roomUpdate?.( heartbeat );

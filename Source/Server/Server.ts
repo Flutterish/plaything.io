@@ -22,7 +22,7 @@ const loggedInUsers = CreateUserPool( loginSessions );
 // ones with at least one active session
 const activeUsers = CreateActiveUserPool( loginSessions );
 
-const roomsByDeviceId: { [id: number]: Room & { activePool: SubscribeablePool<User> } } = {};
+const roomsByDeviceId: { [id: string]: Room & { activePool: SubscribeablePool<User> } } = {};
 const buttplugServer = CreateButtplugServer( 8081 );
 
 activeUsers.entryAdded.addEventListener( user => {
@@ -310,11 +310,31 @@ const ApiHandlers: {
     },
 
     'subscibe-devices': SessionHandler( async ( session, req, ws ) => {
+        if ( wsSubscriptions.canSubscribe( ws, 'devices' ) ) {
+            var subscription = CreatePoolSubscription( 
+                session.user.allowedDevices,
+                device => ws.send<API.HeartbeatDevices>( {
+                    type: 'heartbeat-devices',
+                    kind: 'added',
+                    device: { name: device.name, id: device.ID }
+                } ),
+                device => ws.send<API.HeartbeatDevices>( {
+                    type: 'heartbeat-devices',
+                    kind: 'removed',
+                    deviceId: device.ID
+                } ), 
+                {
+                    ignoreExistingEntries: true
+                }
+            );
+
+            wsSubscriptions.createSubscription( ws, 'devices', subscription.unsubscribe );
+        }
+
         return {
             result: 'ok',
-            devices: session.user.allowedDevices.map( x => ({ name: x.name, id: x.ID }) )
+            devices: session.user.allowedDevices.getValues().map( x => ({ name: x.name, id: x.ID }) )
         }
-        // TODO heartbeat-devices when this goes reactive
     } ),
 
     'subscibe-users': SessionHandler( async ( session, req, ws ) => {
@@ -379,15 +399,14 @@ const ApiHandlers: {
     } ),
 
     'device-info': SessionHandler( async ( session, req, ws ) => {
-        var index = session.user.allowedDevices.findIndex( x => x.ID == req.deviceId );
+        var device = session.user.allowedDevices.getValues().find( x => x.ID == req.deviceId );
 
-        if ( index == -1 ) {
+        if ( device == undefined ) {
             return {
                 result: 'not found'
             }
         }
         else {
-            var device = session.user.allowedDevices[ index ];
             return {
                 result: 'ok',
                 name: device.name,
@@ -398,21 +417,21 @@ const ApiHandlers: {
     } ),
 
     'join-control': SessionHandler( async ( session, req, ws ) => {
-        var index = session.user.allowedDevices.findIndex( x => x.ID == req.deviceId );
-        if ( index == -1 ) {
+        var device = session.user.allowedDevices.getValues().find( x => x.ID == req.deviceId );
+
+        if ( device == undefined ) {
             return {
                 result: 'device not found'
             }
         }
         else {
-            var device = session.user.allowedDevices[ index ];
             var room = roomsByDeviceId[ device.ID ];
             if ( room == undefined ) {
                 roomsByDeviceId[ device.ID ] = room = CreateRoom( device.name, device.controls );
 
                 room.entryRemoved.addEventListener( () => {
                     if ( room.getValues().length == 0 ) {
-                        delete roomsByDeviceId[ device.ID ];
+                        delete roomsByDeviceId[ device!.ID ];
                     }
                 } );
             }

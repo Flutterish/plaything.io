@@ -1,4 +1,4 @@
-import { Event } from "./Events.js";
+import { CreateEvent, Event } from "./Events.js";
 import { Reactive } from "./Reactive.js";
 import { Socket } from './Socket';
 
@@ -19,43 +19,102 @@ export type SubscribeablePool<Tsession> = {
     getValues: () => Readonly<Array<Tsession>>
 }
 
-export function CreatePoolSubscription<Tsession> (
-    sessionPool: SubscribeablePool<Tsession>,
-    added: AddedListener<Tsession>,
-    removed: RemovedListener<Tsession>,
+export type ManagedPool<T> = SubscribeablePool<T> & {
+    add: (value: T) => any,
+    remove: (value: T) => any
+}
+
+export function CreatePool<T> ( values?: T[] ): ManagedPool<T> {
+    var entries: T[] = values == undefined ? [] : [...values];
+    var [entryAddedEvent, entryAddedTrigger] = CreateEvent<T>();
+    var [entryRemovedEvent, entryRemovedTrigger] = CreateEvent<T>();
+
+    return {
+        entryAdded: entryAddedEvent,
+        entryRemoved: entryRemovedEvent,
+        getValues: () => entries,
+
+        add: (value: T) => {
+            entries.push( value );
+            entryAddedTrigger( value );
+        },
+        remove: (value: T) => {
+            var index = entries.indexOf( value );
+            if ( index != -1 ) {
+                entries.splice( index, 1 );
+                entryRemovedTrigger( value );
+            }
+        }
+    };
+}
+
+export function CreateNestedPool<T> ( pool: SubscribeablePool<SubscribeablePool<T>> ): SubscribeablePool<T> & { unsubscribe: () => any } {
+    var values = CreatePool<T>();
+
+    var sub = CreatePoolSubscription(
+        pool,
+        nested => {
+            nested.entryAdded.addEventListener( values.add );
+            nested.entryRemoved.addEventListener( values.remove );
+            for ( const v of nested.getValues() ) {
+                values.add( v );
+            }
+        },
+        nested => {
+            nested.entryAdded.removeEventListener( values.add );
+            nested.entryRemoved.removeEventListener( values.remove );
+            for ( const v of nested.getValues() ) {
+                values.remove( v );
+            }
+        }
+    );
+
+    return { ...values, unsubscribe: () => {
+        sub.unsubscribe();
+        for ( const nested of pool.getValues() ) {
+            nested.entryAdded.removeEventListener( values.add );
+            nested.entryRemoved.removeEventListener( values.remove );
+        }
+    } }
+}
+
+export function CreatePoolSubscription<T> (
+    pool: SubscribeablePool<T>,
+    added: AddedListener<T>,
+    removed: RemovedListener<T>,
     options?: {
         ignoreExistingEntries?: boolean,
-        ignore?: (v: Tsession) => boolean
+        ignore?: (v: T) => boolean
     }
-): PoolSubscription<Tsession> {
-    function entryAdded ( session: Tsession, scan?: true ) {
+): PoolSubscription<T> {
+    function entryAdded ( session: T, scan?: true ) {
         if ( !(options?.ignoreExistingEntries && scan) && options?.ignore?.( session ) != true )
             added( session, scan );
     }
     
-    function entryRemoved ( session: Tsession ) {
+    function entryRemoved ( session: T ) {
         if ( options?.ignore?.( session ) != true )
             removed( session );
     }
     
     var unsubscribe = () => {
-        sessionPool.entryAdded.removeEventListener( entryAdded );
-        sessionPool.entryRemoved.removeEventListener( entryRemoved );
+        pool.entryAdded.removeEventListener( entryAdded );
+        pool.entryRemoved.removeEventListener( entryRemoved );
     }
     
-    sessionPool.entryAdded.addEventListener( entryAdded );
-    sessionPool.entryRemoved.addEventListener( entryRemoved );
+    pool.entryAdded.addEventListener( entryAdded );
+    pool.entryRemoved.addEventListener( entryRemoved );
     
-    for ( const s of sessionPool.getValues() ) {
+    for ( const s of pool.getValues() ) {
         entryAdded( s, true );
     }
 
     function reactToFactory () {
         return <Treactive>( 
-            get: (session: Tsession) => Reactive<Treactive>,
-            react: (session: Tsession, value: Treactive) => any
+            get: (session: T) => Reactive<Treactive>,
+            react: (session: T, value: Treactive) => any
         ) => {
-            const reactives = new Map<Tsession, Reactive<Treactive>>();
+            const reactives = new Map<T, Reactive<Treactive>>();
 
             var chainAdded = added;
             var selfAdded: typeof added = (session, scan) => {
@@ -77,7 +136,7 @@ export function CreatePoolSubscription<Tsession> (
                 chainRemoved( session );
             };
 
-            for ( const s of sessionPool.getValues() ) {
+            for ( const s of pool.getValues() ) {
                 if ( options?.ignore?.( s ) != true )
                     selfAdded( s, true );
             }

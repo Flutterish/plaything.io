@@ -1,7 +1,7 @@
 import { Reactive } from './Reactive.js';
 
 export type Device = {
-    ID: number,
+    ID: string,
     name: string,
     controls: AnyControlInstance[]
 };
