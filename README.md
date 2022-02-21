@@ -67,3 +67,6 @@ Turn your firewall back on. If you try connecting to that address again, it shou
 Now you will need to add an exception for the LAN port you just configured. You will need to add an inbound rule for the port and allow it.
 
 Now you should be able to connect to the address again, and so should anyone in the world, as long as the server is running.
+
+## Contributing and developing
+Please refer to the wiki for info about the codebase
