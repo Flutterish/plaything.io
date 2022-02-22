@@ -5,6 +5,8 @@ plaything.io is a locally hosted service that allows you to interactively contro
 The service is hosted as a server on the computer of the person who shares devices. This means you need to configure your network for it to work outside of the LAN network.
 You will be able to see other users' cursors and the controls being interacted with in real time. You can also send text messages in rooms by right clicking or holding on mobile devices.
 
+https://user-images.githubusercontent.com/40297338/155054012-9be3990c-e108-4a12-840b-2f0398f89810.mp4
+
 ## Supported devices
 ### buttplug.io
 plaything.io suports [buttplug.io](https://buttplug.io) devices out of the box.
