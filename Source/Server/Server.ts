@@ -229,6 +229,11 @@ const ApiHandlers: {
     },
 
     'login': async (req, ws) => {
+        if ( ws != undefined && wsSessions.has( ws ) ) {
+            loginSessions.destroySession( wsSessions.get( ws )! );
+            wsSessions.delete( ws );
+        }
+
         if ( isNullOrEmpty( req.nickname ) ) {
             return { 
                 result: 'invalid',
