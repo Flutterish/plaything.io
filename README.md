@@ -21,7 +21,7 @@ Out of the box, you will have access to these control elements:
 
 ## Setup
 Currently, there are no prebuild releases. Instead you will need to clone this repository.
-First thing you will need to do is install node.js dependencies. Simply run `npm install` to install all dependencies.
+First thing you will need to do is install node.js dependencies. Simply run `npm install --also=dev` to install all dependencies.
 You will also need the typescript compiler `tsc` and `dotnet build` with the `.NET 5.0` SDK.
 ### Configuration
 * Port: `8080` by default. You can change it in `Source/Server/Server.ts`. The server uses `8081` internally, and you cant use it unless you change it in `Source/Server/Server.ts @ CreateButtplugServer`.
