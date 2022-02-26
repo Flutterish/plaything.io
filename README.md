@@ -47,8 +47,8 @@ Now we need to port-forward the port on your router. If you do not have access t
 Usually you will be able to find port-forwarding in a tab called "Port Forwarding" or "Applications".
 If the tab is simply called "Port Forwarding", you will usually be able to add a new rule with these 5 settings:
 * Protocol
-* WAN Address
-* LAN Address
+* WAN (or extenal) Address
+* LAN (or internal) Address
 * WAN port
 * LAN port
 
