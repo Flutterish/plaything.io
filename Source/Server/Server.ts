@@ -12,7 +12,9 @@ import { Room, CreateRoom } from './Room.js';
 import { RoomControlInstance } from './Room';
 import { CreateButtplugServer } from './Buttplug.Api.js';
 import fs from 'fs';
+import { GenerateInvite, UseInvites } from './Invite.js';
 
+const invite = UseInvites ? GenerateInvite() : undefined;
 const app = express();
 const port = 8080;
 const serverName = fs.existsSync( '.dev' )
@@ -164,6 +166,9 @@ wss.addListener( 'connection', (ws, req) => {
 
 const server = app.listen( port, () => {
 	console.log( `Listening on port ${port}` );
+    if ( UseInvites ) {
+        console.log( `Your invite code is: "#${invite}"` );
+    }
 } );
 
 server.on( 'upgrade', (req, ws, head) => {
@@ -225,13 +230,23 @@ const ApiHandlers: {
     },
 
     'login-information': async req => {
-        return { anonymousAllowed: AllowAnonymousAccess };
+        return { 
+            anonymousAllowed: AllowAnonymousAccess,
+            inviteRequired: UseInvites
+        };
     },
 
     'login': async (req, ws) => {
         if ( ws != undefined && wsSessions.has( ws ) ) {
             loginSessions.destroySession( wsSessions.get( ws )! );
             wsSessions.delete( ws );
+        }
+
+        if ( UseInvites && req.invite != invite ) {
+            return { 
+                result: 'invalid',
+                reason: 'invite required'
+            };
         }
 
         if ( isNullOrEmpty( req.nickname ) ) {

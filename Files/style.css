@@ -773,3 +773,14 @@ select {
     padding: 2px 8px;
     padding-top: 1px;
 }
+
+.spoiler {
+    background-color: black;
+    color: transparent;
+    display: inline-block;
+}
+
+.spoiler:hover {
+    background-color: transparent;
+    color: inherit;
+}

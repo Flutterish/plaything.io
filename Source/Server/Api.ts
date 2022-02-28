@@ -37,7 +37,8 @@ export namespace API {
     export type RequestLogin = {
         type: 'login',
         nickname: string,
-        password?: string
+        password?: string,
+        invite?: string
     }
     export type RequestLogout = {
         type: 'logout'
@@ -107,7 +108,8 @@ export namespace API {
     export type Message = Extract<MessageTypes, {type: string}>
 
     export type ResponseLoginInfo = {
-        anonymousAllowed: boolean
+        anonymousAllowed: boolean,
+        inviteRequired: boolean
     }
     export type ResponseServerInfo = {
         name: string
@@ -117,7 +119,7 @@ export namespace API {
         sessionKey: SessionKey
     } | {
         result: 'invalid',
-        reason: 'nickname and password required' | 'nickname required' | 'password required' | 'invalid credentials'
+        reason: 'nickname and password required' | 'nickname required' | 'password required' | 'invalid credentials' | 'invite required'
     }
     export type ResponseLogout = {
         result: 'ok' | 'session not found'

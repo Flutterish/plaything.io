@@ -9,6 +9,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.17.2",
+    "namor": "^2.0.3",
     "ws": "^8.5.0"
   }
 }

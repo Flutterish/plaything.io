@@ -111,11 +111,17 @@ export async function logOut () {
     return false;
 }
 
+export var invite: string = '';
+window.addEventListener( 'load', () => {
+    invite = location.hash.substring( 1 );
+} );
+
 export async function logIn ( nickname: string, password?: string ) {
     var res = await sockets.request<API.RequestLogin>( {
         type: 'login',
         nickname: nickname,
-        password: password
+        password: password,
+        invite: invite
     } );
 
     if ( res.result == 'ok' ) {

@@ -1,7 +1,7 @@
 import { destroyMain } from './Body.js';
 import { goToDevicesPage } from './Devices.js';
 import { goToPage, PageState } from './Pages.js';
-import { cachedGet, logIn } from './Session.js';
+import { cachedGet, invite, logIn } from './Session.js';
 import { loadCouldPreferences } from './Settings.js';
 import { createTemplate } from './Utils.js';
 
@@ -41,6 +41,15 @@ export async function loadLoginPage ( state: PageState ) {
 
     cachedGet( 'server-information' ).then( res => {
         serverName.innerText = 'plaything.io / ' + res.name;
+        if ( invite != '' ) {
+            var small = document.createElement( 'small' );
+            small.innerText = `\nInvite: `;
+            var spoiler = document.createElement( 'div' );
+            spoiler.classList.add( 'spoiler' );
+            spoiler.innerText = '#' + invite;
+            small.appendChild( spoiler );
+            serverName.appendChild( small );
+        }
     } );
 
     cachedGet( 'login-information' ).then( info => {
@@ -50,6 +59,14 @@ export async function loadLoginPage ( state: PageState ) {
         else {
             passLabel.innerText += '*';
             passLabel.setAttribute( 'title', 'Password is required' );
+        }
+
+        if ( info.inviteRequired && invite == '' ) {
+            messages.innerHTML = `
+                <i class="fa-solid fa-skull"></i>
+                <div>You will not be able to join</div>
+                <div>An invite link is required to join this server</div>
+            `;
         }
     } );
 
@@ -84,6 +101,14 @@ export async function loadLoginPage ( state: PageState ) {
             }
             else if ( res.reason == 'invalid credentials' ) {
                 messages.innerHTML += '<div>Invalid credentials</div>';
+            }
+            else if ( res.reason == 'invite required' ) {
+                if ( invite == '' ) {
+                    messages.innerHTML += '<div>An invite link is required to join this server</div>';
+                }
+                else {
+                    messages.innerHTML += '<div>Your invite link is invalid</div>';
+                }
             }
         }
     };
