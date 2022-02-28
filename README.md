@@ -21,7 +21,7 @@ Out of the box, you will have access to these control elements:
 
 ## Setup
 Currently, there are no prebuild releases. Instead you will need to clone this repository.
-First thing you will need to do is install node.js dependencies. Simply run `npm install` to install all dependencies.
+First thing you will need to do is install node.js dependencies. Simply run `npm install --also=dev` to install all dependencies.
 You will also need the typescript compiler `tsc` and `dotnet build` with the `.NET 5.0` SDK.
 ### Configuration
 * Port: `8080` by default. You can change it in `Source/Server/Server.ts`. The server uses `8081` internally, and you cant use it unless you change it in `Source/Server/Server.ts @ CreateButtplugServer`.
@@ -47,8 +47,8 @@ Now we need to port-forward the port on your router. If you do not have access t
 Usually you will be able to find port-forwarding in a tab called "Port Forwarding" or "Applications".
 If the tab is simply called "Port Forwarding", you will usually be able to add a new rule with these 5 settings:
 * Protocol
-* WAN Address
-* LAN Address
+* WAN (or extenal) Address
+* LAN (or internal) Address
 * WAN port
 * LAN port
 
