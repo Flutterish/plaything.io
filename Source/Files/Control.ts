@@ -1,11 +1,19 @@
 import { API } from '@Server/Api';
 import { Control } from '@Server/Device';
 import { mainBody, onMainBody } from './Body.js';
+import { createButton } from './Controls/Button.js';
+import { createSlider } from './Controls/Slider.js';
 import { goToLoginPage } from './Login.js';
 import { goToPage, PageState } from './Pages.js';
 import { heartbeatHandlers, isLoggedIn, sockets, userNickname } from './Session.js';
 import { computeSharedControlLayout } from './ShareLayout.js';
 import { createTemplate, fitFont } from './Utils.js';
+
+export type ControlVisual = {
+    element: HTMLElement,
+    setValue: (value: any) => any,
+    hoverActiveElement: HTMLElement
+};
 
 export var controlPageRemoved: (() => any) | undefined = undefined;
 var controlPage: HTMLElement | undefined = undefined;
@@ -72,152 +80,20 @@ export async function loadControlPage ( state: PageState ) {
 
         deviceName.nodeValue = res.name;
 
-        function createButton ( control: Control.Button, id: number, state: boolean ) {
-            var button = document.createElement( 'div' );
-            button.classList.add( 'control-button' );
-            if ( control.label != undefined ) {
-                var label = document.createElement( 'div' );
-                label.classList.add( 'control-label' );
-                label.innerText = control.label;
-                button.appendChild( label );
-            }
-            var inner = document.createElement( 'div' );
-            inner.classList.add( 'button-inner' );
-            inner.classList.add( 'button' );
-            inner.classList.add( 'font-icon' );
-            reactsById.set( id, inner );
-            button.appendChild( inner );
-            var icon = document.createElement( 'i' );
-            icon.classList.add( 'fa-solid' );
-            icon.classList.add( 'fa-power-off' );
-            inner.appendChild( icon );
-
-            let value = state;
-            function updateVisual () {
-                if ( value ) {
-                    button.classList.remove( 'off' );
-                    button.classList.add( 'on' );
-                }
-                else {
-                    button.classList.remove( 'on' );
-                    button.classList.add( 'off' );
-                }
-            }
-
-            setValueById.set( id, v => {
-                value = v;
-                updateVisual();
-            } );
-
-            inner.addEventListener( 'click', e => {
-                value = !value;
-                updateVisual();
-
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value, timestamp: Date.now() } );
-            } );
-            let istouch = false;
-            inner.addEventListener( 'mousedown', e => istouch = false );
-            inner.addEventListener( 'touchstart', e => istouch = true );
-            inner.addEventListener( 'contextmenu', e => {
-                if ( istouch ) {
-                    function onUp () {
-                        value = !value;
-                        updateVisual();
-        
-                        sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value, timestamp: Date.now() } );
-                        inner.removeEventListener( 'touchend', onUp );
-                    }
-                    inner.addEventListener( 'touchend', onUp );
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            } );
-
-            updateVisual();
-            return button;
-        }
-        function createSlider ( control: Control.Slider, id: number, state: number ) {
-            var slider = document.createElement( 'div' );
-            slider.classList.add( 'control-slider' );
-            if ( control.label != undefined ) {
-                var label = document.createElement( 'div' );
-                label.classList.add( 'control-label' );
-                label.innerText = control.label;
-                slider.appendChild( label );
-            }
-            var bar = document.createElement( 'div' );
-            bar.classList.add( 'bar' );
-            slider.appendChild( bar );
-            var fill = document.createElement( 'div' );
-            fill.classList.add( 'bar-fill' );
-            slider.appendChild( fill );
-            var notches = document.createElement('div' );
-            notches.classList.add( 'notches' );
-            for ( let i = control.notches - 1; i >= 0; i-- ) {
-                var notch = document.createElement( 'div' );
-                var notchLabel = document.createElement( 'div' );
-                notchLabel.classList.add( 'notch-label' );
-                notchLabel.innerText = (control.range[0] + ( control.range[1] - control.range[0] ) * ( i / (control.notches - 1) )).toFixed( 0 );
-                notch.appendChild( notchLabel );
-                var notchVisual = document.createElement( 'div' );
-                notchVisual.classList.add( 'notch' );
-                notch.appendChild( notchVisual );
-                notches.appendChild( notch );
-            }
-            slider.appendChild( notches );
-            var handle = document.createElement( 'div' );
-            handle.classList.add( 'handle' );
-            reactsById.set( id, handle );
-            slider.appendChild( handle );
-
-            let value = state;
-            function updateVisual () {
-                slider.style.setProperty( '--value', ((value - control.range[0]) / (control.range[1] - control.range[0])).toString() );
-            }
-
-            setValueById.set( id, v => {
-                value = v;
-                updateVisual();
-            } );
-
-            function drag ( e: PointerEvent ) {
-                var bound = slider.getBoundingClientRect();
-                var style = getComputedStyle( notches );
-                var padding = Number.parseFloat( style.paddingTop );
-                var y = 1 - (e.clientY - bound.top - padding) / (bound.height - padding * 2);
-                y = Math.max( Math.min( y, 1 ), 0 );
-                value = control.range[0] + y * ( control.range[1] - control.range[0] );
-                sockets.message<API.MessageModifiedControl>( { type: 'modified-control', controlId: id, state: value, timestamp: Date.now() } );
-                updateVisual();
-            }
-            function dragEnd () {
-                window.removeEventListener( 'pointermove', drag );
-                window.removeEventListener('pointerup', dragEnd );
-            }
-            handle.addEventListener( 'pointerdown', e => {
-                window.addEventListener( 'pointermove', drag );
-                window.addEventListener('pointerup', dragEnd );
-            } );
-
-            updateVisual();
-
-            return slider;
-        }
-
         const controls = res.controls;
         const boundsByControl = new Map<Control.Any, HTMLElement>();
-        const reactsById = new Map<number, HTMLElement>()
-        const setValueById = new Map<number, (value: any) => any>()
+        const controlsById = new Map<number, ControlVisual>();
         let i = 0;
         for ( const control of controls ) {
             const id = i;
-            let itemBounds = control.type == 'button'
+            let visual = control.type == 'button'
                 ? createButton( control, id, res.values[id] )
                 : createSlider( control, id, res.values[id] );
                 
-            boundsByControl.set( control, itemBounds );
-            controlList.appendChild( itemBounds );
-            var react = reactsById.get( id );
+            boundsByControl.set( control, visual.element );
+            controlsById.set( id, visual );
+            controlList.appendChild( visual.element );
+            var react = visual.hoverActiveElement;
             let active = false;
             let hover = false;
 
@@ -241,7 +117,6 @@ export async function loadControlPage ( state: PageState ) {
 
         var bounds = share;
         bounds.style.position = 'absolute';
-        // bounds.style.backgroundColor = 'red';
 
         function updateLayout () {
             var width = controlPage!.clientWidth - 32;
@@ -279,8 +154,9 @@ export async function loadControlPage ( state: PageState ) {
         repositionControls = updateLayout;
         controlUpdate = res => {
             var control = res.control;
-            var item = reactsById.get( res.control.controlId );
-            setValueById.get( res.control.controlId )?.( res.control.state );
+            var visual = controlsById.get( res.control.controlId );
+            var item = visual?.hoverActiveElement;
+            visual?.setValue( res.control.state );
 
             if ( item != undefined ) {
                 if ( control.active ) {
